@@ -296,6 +296,21 @@ Task(description="Debug error",
 - **0**: Success (stdout → user, except UserPromptSubmit → context)
 - **2**: Block (stderr → Claude)
 - **Other**: Error (stderr → user, continue)
+1. Output limitations:
+  - Exit code 0: stdout shown to user (except UserPromptSubmit where it goes to context)
+  - Exit code 2: stderr fed to Claude
+  - Other exit codes: stderr shown to user
+2. JSON output provides more control with fields like:
+  - continue: whether Claude should continue
+  - stopReason: message shown when continue is false
+  - suppressOutput: hide stdout from transcript
+  - For PostToolUse specifically, decision: "block" with reason prompts Claude
+3. The hook receives input via stdin with event-specific data
+
+Focus on features that:
+- Can provide feedback to Claude (exit code 2 or JSON with decision: "block")
+- Can track/log information for later use
+- Can perform automated actions based on tool usage patterns
 
 ### JSON Control
 ```json
