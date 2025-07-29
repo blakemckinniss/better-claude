@@ -12,7 +12,7 @@ from hook_logger import logger  # type: ignore
 
 # Circuit breaker switches - Set to False to disable specific hooks
 ENABLE_USER_PROMPT_SUBMIT = True
-ENABLE_PRE_TOOL_USE = False
+ENABLE_PRE_TOOL_USE = True
 ENABLE_POST_TOOL_USE = True
 ENABLE_NOTIFICATION = False
 ENABLE_STOP = True

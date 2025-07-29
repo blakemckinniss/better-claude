@@ -40,8 +40,8 @@ class CodeSmellDetector:
         line_smells = []
 
         for i, line in enumerate(lines, 1):
-            # Check line length
-            if len(line) > self.thresholds["max_file_length"]:
+            # Check line length (using 120 as reasonable line length limit)
+            if len(line) > 120:
                 line_smells.append(
                     {
                         "line": i,
@@ -71,7 +71,7 @@ class CodeSmellDetector:
         return line_smells
 
     def _analyze_file_structure(
-        self, tree: ast.AST, lines: List[str]
+        self, tree: ast.Module, lines: List[str]
     ) -> List[Dict[str, Any]]:
         """Analyze file-level structure issues."""
         file_smells = []
@@ -137,17 +137,25 @@ class CodeSmellDetector:
                 func_name = node.name
 
                 # Check function length
-                func_lines = node.end_lineno - node.lineno + 1
-                if func_lines > self.thresholds["max_function_length"]:
-                    function_smells[func_name].append(
-                        {
-                            "type": "long_function",
-                            "severity": "major",
-                            "message": f"Function too long ({func_lines} lines)",
-                            "line": node.lineno,
-                        }
-                    )
-
+                if node.end_lineno is not None and node.lineno is not None:
+                    func_lines = node.end_lineno - node.lineno + 1
+                    if func_lines > self.thresholds["max_function_length"]:
+                        function_smells[func_name].append(
+                            {
+                                "type": "long_function",
+                                "severity": "major",
+                                "message": f"Function too long ({func_lines} lines)",
+                                "line": node.lineno,
+                            }
+                        )
+                elif node.lineno is not None:
+                    # If end_lineno is None, we can't reliably calculate length, skip this check
+                    pass
+                
+                # Only proceed with other checks if we have line number information
+                if node.lineno is None:
+                    continue
+                    
                 # Check parameter count
                 num_params = len(node.args.args) + len(node.args.kwonlyargs)
                 if num_params > self.thresholds["max_parameters"]:
@@ -232,15 +240,19 @@ class CodeSmellDetector:
 
                 # Check for class variables without type hints
                 for item in node.body:
-                    if isinstance(item, ast.AnnAssign) and item.annotation is None:
-                        class_smells[class_name].append(
-                            {
-                                "type": "missing_type_annotation",
-                                "severity": "minor",
-                                "message": "Class variable lacks type annotation",
-                                "line": item.lineno,
-                            }
-                        )
+                    if isinstance(item, ast.Assign) and not isinstance(item, ast.AnnAssign):
+                        # Skip special methods and private variables
+                        if hasattr(item, 'targets') and item.targets:
+                            target = item.targets[0]
+                            if isinstance(target, ast.Name) and not target.id.startswith('_'):
+                                class_smells[class_name].append(
+                                    {
+                                        "type": "missing_type_annotation",
+                                        "severity": "minor",
+                                        "message": "Class variable lacks type annotation",
+                                        "line": item.lineno,
+                                    }
+                                )
 
         return dict(class_smells)
 

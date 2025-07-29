@@ -125,6 +125,16 @@ def format_core_tools_intro() -> str:
    - tavily_search: Real-time web search
    - tavily_extract: Extract content from URLs
    - tavily_crawl: Multi-page website analysis
+   
+🌳 **Tree-sitter** (mcp__tree_sitter__)
+   Advanced code parsing & AST analysis
+   - register_project: Initialize project for analysis
+   - get_ast: Parse code into abstract syntax tree
+   - run_query: Execute tree-sitter queries on code
+   - analyze_complexity: Measure code complexity metrics
+   - find_similar_code: Detect duplicate patterns
+   - get_symbols: Extract classes/functions/variables
+   - analyze_project: Full project structure analysis
 
 Use these tools for efficient development!
 """

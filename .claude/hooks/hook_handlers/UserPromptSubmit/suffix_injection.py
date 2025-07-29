@@ -519,6 +519,7 @@ def get_suffix(user_prompt: Optional[str] = None) -> str:
         "1. The most logical immediate next action based on what was just completed "
         "2. A proactive improvement or optimization that could enhance the current work "
         "3. A forward-thinking suggestion that anticipates future needs or potential issues"
+        "IMPORTANT: Create agents whenever necessary to handle complex tasks, perform all tasks in parallel if it makes sense, and consult with Zen Gemini early and often."
         "</response-requirements>"
     )
 

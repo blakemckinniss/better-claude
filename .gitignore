@@ -1,57 +1,43 @@
-# Python
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Cache files
+*.cache
+claude_md_cache.json
+
+# Claude internal directories
+.claude/hooks/.claude/
+.claude/hooks/hook_handlers/UserPromptSubmit/.claude/
+.claude/hooks/tests/.claude/
+
+# Agents directory (runtime-generated)
+.claude/agents/
+
+# Serena directory (separate tool)
+.serena/
+
+# Python cache
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.pyc
+*.pyo
 
-# Virtual environments
-venv/
-ENV/
-env/
-.venv
-
-# IDE
+# IDE files
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
 .claude/hooks/hook_logs/
 
-# Cache
-.ruff_cache/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.hypothesis/
-
-# Local environment
-.env
-.env.local
+*.tests_
+.claude-indexer
+.ruff_cache
+.pytest_cache
