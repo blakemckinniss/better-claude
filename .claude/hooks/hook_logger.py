@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -64,16 +63,15 @@ class HookLogger:
             if key in data:
                 log_entry[key] = data[key]
         
-        
         with open(log_file, "a") as f:
             # Write a human-readable format
-            f.write(f"\n{'='*80}\n")
+            f.write(f"\n{'=' * 80}\n")
             f.write(f"[{timestamp.isoformat()}] {hook_event_name}")
             
             if "tool_name" in log_entry:
                 f.write(f" - Tool: {log_entry['tool_name']}")
             
-            f.write(f"\n{'-'*80}\n")
+            f.write(f"\n{'-' * 80}\n")
             
             # Write key information
             f.write(f"Session ID: {session_id}\n")
