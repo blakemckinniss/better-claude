@@ -24,37 +24,42 @@ class SmartZenFilter:
     """Intelligent filter that analyzes prompt complexity and intent."""
 
     def __init__(self):
-        # Intent patterns with complexity weights
+        # Intent patterns with complexity weights (made more lenient)
         self.intent_patterns = {
             # High complexity (0.8-1.0)
             "architecture": (r"\b(architect|design|pattern|structure|system)\b", 0.9),
             "debugging": (r"\b(debug|troubleshoot|fix|issue|problem|error)\b", 0.8),
             "optimization": (r"\b(optimiz|performance|efficient|scale|improve)\b", 0.8),
-            "analysis": (r"\b(analyz|understand|explain|evaluate|assess)\b", 0.7),
-            "decision": (r"\b(should|choose|decide|compare|versus|vs)\b", 0.7),
+            "analysis": (r"\b(analyz|understand|explain|evaluate|assess)\b", 0.8),  # Increased from 0.7
+            "decision": (r"\b(should|choose|decide|compare|versus|vs)\b", 0.8),  # Increased from 0.7
             "implementation": (
                 r"\b(implement|build|create|develop|add feature)\b",
                 0.8,
             ),
-            # Medium complexity (0.4-0.7)
-            "modification": (r"\b(refactor|change|modify|update|enhance)\b", 0.6),
-            "question": (r"\b(how|why|what|when|where|could|would)\b", 0.5),
-            "planning": (r"\b(plan|strategy|approach|method|way)\b", 0.6),
-            # Low complexity (0.0-0.4)
+            # Medium complexity (0.4-0.7) - made more generous
+            "modification": (r"\b(refactor|change|modify|update|enhance)\b", 0.7),  # Increased from 0.6
+            "question": (r"\b(how|why|what|when|where|could|would)\b", 0.6),  # Increased from 0.5
+            "planning": (r"\b(plan|strategy|approach|method|way)\b", 0.7),  # Increased from 0.6
+            "collaboration": (r"\b(help|assist|guide|work together|brainstorm)\b", 0.6),  # New pattern
+            # Low complexity (0.0-0.4) - made more generous
             "simple_action": (
                 r"\b(read|write|delete|rename|move|copy|show|list)\b",
-                0.2,
+                0.3,  # Increased from 0.2
             ),
-            "status": (r"\b(status|version|help|info|check)\b", 0.1),
-            "format": (r"\b(format|indent|style|clean)\b", 0.2),
+            "status": (r"\b(status|version|help|info|check)\b", 0.2),  # Increased from 0.1
+            "format": (r"\b(format|indent|style|clean)\b", 0.3),  # Increased from 0.2
         }
 
-        # Complexity modifiers
+        # Complexity modifiers (enhanced and more generous)
         self.complexity_modifiers = {
-            "multiple_files": (r"\b(files|multiple|all|entire|whole)\b", 0.2),
-            "conditional": (r"\b(if|when|unless|except|but)\b", 0.1),
-            "comparison": (r"\b(better|worse|versus|vs|compare|than)\b", 0.2),
-            "uncertainty": (r"\b(might|maybe|perhaps|possibly|could be)\b", 0.1),
+            "multiple_files": (r"\b(files|multiple|all|entire|whole)\b", 0.3),  # Increased from 0.2
+            "conditional": (r"\b(if|when|unless|except|but)\b", 0.2),  # Increased from 0.1
+            "comparison": (r"\b(better|worse|versus|vs|compare|than)\b", 0.3),  # Increased from 0.2
+            "uncertainty": (r"\b(might|maybe|perhaps|possibly|could be)\b", 0.2),  # Increased from 0.1
+            "code_references": (r"\b(function|class|method|variable|import|export)\b", 0.2),  # New
+            "technical_terms": (r"\b(api|database|server|client|configuration|deployment)\b", 0.2),  # New
+            "time_pressure": (r"\b(urgent|quickly|asap|immediately|now)\b", 0.2),  # New
+            "scope_words": (r"\b(project|codebase|system|application|feature)\b", 0.1),  # New
         }
 
     def _pattern_analysis(self, text: str) -> Tuple[float, str]:
@@ -75,11 +80,14 @@ class SmartZenFilter:
                 score += modifier
                 matched_intents.append(f"+{modifier_name}")
 
-        # Length-based adjustment
+        # Length-based adjustment (enhanced)
         word_count = len(text.split())
-        if word_count > 20:
-            score += 0.1
+        if word_count > 15:  # Lowered threshold from 20
+            score += 0.2  # Increased from 0.1
             matched_intents.append("detailed_request")
+        elif word_count > 8:  # Additional tier for medium-length prompts
+            score += 0.1
+            matched_intents.append("medium_length")
 
         # Normalize score
         score = min(score, 1.0)
@@ -152,8 +160,8 @@ class SmartZenFilter:
         else:
             score, reasoning = self._pattern_analysis(text)
 
-        # Decision threshold
-        should_use = score >= 0.5
+        # Decision threshold (lowered to be more inclusive)
+        should_use = score >= 0.3  # Reduced from 0.5 to trigger more often
 
         return should_use, score, reasoning
 

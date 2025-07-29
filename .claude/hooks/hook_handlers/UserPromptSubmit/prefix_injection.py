@@ -7,4 +7,4 @@ def get_prefix():
     Returns:
         str: The prefix text to add as context
     """
-    return "Think deeply. "
+    return "Think optimal. Consult with ZEN whenever possible. "

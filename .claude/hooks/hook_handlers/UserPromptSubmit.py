@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from UserPromptSubmit.content_injection import get_content_injection
 from UserPromptSubmit.prefix_injection import get_prefix
 from UserPromptSubmit.suffix_injection import get_suffix
+from UserPromptSubmit.trigger_injection import get_trigger_injection
 from UserPromptSubmit.zen_injection import get_zen_injection
 
 
@@ -20,10 +21,13 @@ def handle(data):
     prefix = get_prefix()
     zen_instruction = get_zen_injection(user_prompt)
     content_instruction = get_content_injection(user_prompt)
-    suffix = get_suffix()
+    trigger_instruction = get_trigger_injection(user_prompt)
+    suffix = get_suffix(user_prompt)
 
     # Build additional context - combine all injections
-    additional_context = f"{zen_instruction}{content_instruction}{prefix}{suffix}"
+    additional_context = (
+        f"{zen_instruction}{content_instruction}{prefix}{trigger_instruction}{suffix}"
+    )
 
     # Return JSON output with additional context
     output = {

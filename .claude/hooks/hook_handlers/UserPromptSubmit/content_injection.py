@@ -3,6 +3,14 @@
 import re
 from typing import Any, Dict, Optional
 
+try:
+    from .code_smell_detector import detect_smells_for_prompt
+    from .dependency_graph import analyze_dependencies_for_prompt
+except ImportError:
+    # Fallback if modules aren't available yet
+    analyze_dependencies_for_prompt = None
+    detect_smells_for_prompt = None
+
 
 class SmartContentInjector:
     """Intelligent content injection based on detected operations."""
@@ -68,6 +76,16 @@ class SmartContentInjector:
                 task_types.append(task_name)
                 applicable_directives.append(task_info["directive"])
 
+        # Analyze dependencies if available
+        dependency_analysis = None
+        if analyze_dependencies_for_prompt:
+            dependency_analysis = analyze_dependencies_for_prompt(prompt)
+
+        # Detect code smells if available
+        code_smell_analysis = None
+        if detect_smells_for_prompt:
+            code_smell_analysis = detect_smells_for_prompt(prompt)
+
         return {
             "has_file_ops": len(file_ops) > 0,
             "has_parallel_potential": len(parallel_ops) > 0,
@@ -75,57 +93,113 @@ class SmartContentInjector:
             "parallel_operations": parallel_ops,
             "task_types": task_types,
             "specific_directives": applicable_directives,
+            "dependency_analysis": dependency_analysis,
+            "code_smell_analysis": code_smell_analysis,
         }
 
     def generate_injection(self, analysis: Dict[str, Any]) -> str:
         """Generate appropriate performance directives based on analysis."""
-        if not (analysis["has_file_ops"] or analysis["has_parallel_potential"]):
-            return ""  # No optimization needed
+        sections = []
 
-        directives = []
-
-        # Core directives for file operations
+        # Performance optimizations
+        perf_directives = []
         if analysis["has_file_ops"]:
             if "multi_read" in analysis["file_operations"]:
-                directives.append(
-                    "file_batch_read: 'Send ONE message with multiple Read tool calls for all files'"
+                perf_directives.append(
+                    "file_batch_read: 'Send ONE message with multiple Read tool calls for all files'",
                 )
             if "batch_edit" in analysis["file_operations"]:
-                directives.append(
-                    "file_batch_edit: 'Use MultiEdit tool or batch Edit calls in single message'"
+                perf_directives.append(
+                    "file_batch_edit: 'Use MultiEdit tool or batch Edit calls in single message'",
                 )
             if "search_ops" in analysis["file_operations"]:
-                directives.append(
-                    "file_search: 'Use Grep/Glob tools with appropriate patterns, batch results'"
+                perf_directives.append(
+                    "file_search: 'Use Grep/Glob tools with appropriate patterns, batch results'",
                 )
 
-        # Parallel processing directives
         if analysis["has_parallel_potential"]:
-            directives.append(
-                "parallel_execution: 'Identify independent tasks and spawn subagents using Task tool'"
+            perf_directives.append(
+                "parallel_execution: 'Identify independent tasks and spawn subagents using Task tool'",
             )
             if "test_and_X" in analysis["parallel_operations"]:
-                directives.append(
-                    "test_parallel: 'Create test subagent while implementing main functionality'"
+                perf_directives.append(
+                    "test_parallel: 'Create test subagent while implementing main functionality'",
                 )
 
-        # Add specific task directives
         if analysis["specific_directives"]:
             for i, directive in enumerate(analysis["specific_directives"], 1):
-                directives.append(f"optimization_{i}: '{directive}'")
+                perf_directives.append(f"optimization_{i}: '{directive}'")
 
-        if not directives:
+        if perf_directives:
+            sections.append(
+                "PERFORMANCE_OPTIMIZATIONS: {"
+                + ", ".join(perf_directives)
+                + ", priority: 'Maximize parallelism and minimize sequential operations'}",
+            )
+
+        # Dependency impact analysis
+        if analysis.get("dependency_analysis"):
+            dep_analysis = analysis["dependency_analysis"]
+            dep_warnings = []
+
+            for file, impact in dep_analysis.get("impact_analysis", {}).items():
+                if impact["total_impacted"] > 0:
+                    dep_warnings.append(
+                        f"'{file}': {impact['total_impacted']} files depend on this",
+                    )
+                    if impact["critical_paths"]:
+                        dep_warnings.append(
+                            f"critical_paths: {impact['critical_paths'][:3]}",
+                        )
+
+            if dep_warnings:
+                sections.append(
+                    "DEPENDENCY_IMPACT: {"
+                    + ", ".join(dep_warnings)
+                    + ", warning: 'Changes will cascade to dependent files'}",
+                )
+
+        # Code quality warnings
+        if analysis.get("code_smell_analysis"):
+            smell_analysis = analysis["code_smell_analysis"]
+            quality_warnings = []
+
+            overall = smell_analysis.get("overall_summary", {})
+            if overall.get("critical_issues", 0) > 0:
+                quality_warnings.append(
+                    f"CRITICAL: {overall['critical_issues']} critical issues found",
+                )
+
+            if overall.get("average_quality_score", 100) < 70:
+                quality_warnings.append(
+                    f"quality_score: {overall['average_quality_score']:.0f}/100",
+                )
+
+            # Highlight specific issues
+            for file, details in smell_analysis.get("file_details", {}).items():
+                summary = details["summary"]
+                if summary["total_smells"] > 5:
+                    top_issues = sorted(
+                        summary["by_type"].items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:3]
+                    quality_warnings.append(
+                        f"'{file}': {', '.join([f'{k}({v})' for k, v in top_issues])}",
+                    )
+
+            if quality_warnings:
+                sections.append(
+                    "CODE_QUALITY_WARNINGS: {"
+                    + ", ".join(quality_warnings)
+                    + ", recommendation: 'Consider refactoring before adding new features'}",
+                )
+
+        if not sections:
             return ""
 
-        # Build the injection
-        return (
-            "<system-instruction>"
-            "PERFORMANCE_OPTIMIZATIONS: {"
-            + ", ".join(directives)
-            + ", priority: 'Maximize parallelism and minimize sequential operations'"
-            "}"
-            "</system-instruction> "
-        )
+        # Build the complete injection
+        return f"<system-instruction>{' '.join(sections)}</system-instruction> "
 
 
 # Global instance

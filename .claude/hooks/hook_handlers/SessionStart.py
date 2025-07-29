@@ -112,6 +112,14 @@ def format_core_tools_intro() -> str:
    - get_references: Find all usages
    - rename_symbol: Refactor across files
    
+📁 **Filesystem** (mcp__filesystem__)
+   General file & directory operations
+   - read_file: Read file contents
+   - write_file: Create/overwrite files
+   - edit_file: Line-based text editing
+   - list_directory: Browse directory contents
+   - search_files: Find files by pattern
+   
 🌐 **Tavily** (mcp__tavily-remote__)
    Web search & content extraction
    - tavily_search: Real-time web search
