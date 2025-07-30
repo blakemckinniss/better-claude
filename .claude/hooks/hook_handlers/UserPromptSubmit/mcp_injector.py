@@ -6,7 +6,7 @@ from the available set, providing contextual examples and usage guidance.
 """
 
 import re
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 
 
 class MCPInjector:
@@ -377,9 +377,9 @@ class MCPInjector:
             lines.append(f"{i}. **{tool_info['name']}**")
             lines.append(f"   {tool_info['description']}")
             lines.append(f"   *{reason}*")
-            lines.append(f"   ```python")
+            lines.append("   ```python")
             lines.append(f"   {tool_info['example']}")
-            lines.append(f"   ```")
+            lines.append("   ```")
             lines.append("")
         
         # Add usage tips based on detected intent

@@ -19,7 +19,7 @@ DEFAULT_MCP_MAPPINGS: Dict[str, Dict] = {
             # Medium priority (git operations)
             6: ["git commit", "git push", "git merge", "fork repo", "clone repo"],
             # Lower priority (general terms)
-            4: ["repository", "repo", "branch", "contributor", "collaborator"],
+            4: ["repository", "repo", "git", "branch", "contributor", "collaborator"],
             # CI/CD keywords
             7: ["github actions", "github workflow", "ci/cd pipeline", "deploy github"]
         },
@@ -33,7 +33,7 @@ DEFAULT_MCP_MAPPINGS: Dict[str, Dict] = {
         "priority": 9,
         "keywords": {
             # Highest priority (explicit requests)
-            10: ["use zen", "consult zen", "zen analysis"],
+            10: ["use zen", "consult zen", "zen analysis", "brainstorm"],
             # High priority (complex analysis)
             9: ["analyze architecture", "analyze the architecture", "debug complex", "root cause analysis", "deep dive"],
             # Medium priority (planning & strategy)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import asyncio
 import json
 import os
 import sys
@@ -6,48 +7,144 @@ import sys
 # Add the current directory to the path so we can import the UserPromptSubmit module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from UserPromptSubmit.content_injection import get_content_injection
-from UserPromptSubmit.git_injection import get_git_injection
-from UserPromptSubmit.mcp_injector import get_mcp_injection
-from UserPromptSubmit.prefix_injection import get_prefix
-from UserPromptSubmit.suffix_injection import get_suffix
-from UserPromptSubmit.tree_sitter_injection import (
+# Circuit breaker configuration for enabling/disabling injections
+# Set to False to disable specific injections
+INJECTION_CIRCUIT_BREAKERS = {
+    "prefix": True,
+    "suffix": True,
+    "zen": True,
+    "content": True,
+    "trigger": True,
+    "tree_sitter": True,
+    "tree_sitter_hints": True,
+    "mcp": True,
+    "agent": True,
+    "git": True,
+    "runtime_monitoring": False,
+    "test_status": False,
+    "lsp_diagnostics": True,
+    "context_history": True,
+    "firecrawl": True,
+    "ai_optimization": True,  # Controls AI context optimization
+}
+
+
+# Load environment variables from .env file
+def load_env_file():
+    """Load environment variables from .env file if it exists."""
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+
+    # Handle case where CLAUDE_PROJECT_DIR is a placeholder
+    if project_dir == "$CLAUDE_PROJECT_DIR" or not os.path.isdir(project_dir):
+        project_dir = os.getcwd()
+
+    env_file = os.path.join(project_dir, ".env")
+
+    if os.path.exists(env_file):
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    os.environ[key.strip()] = value.strip()
+
+
+# Load .env file early
+load_env_file()
+
+from UserPromptSubmit.ai_context_optimizer import optimize_injection_sync  # noqa: E402
+from UserPromptSubmit.content_injection import get_content_injection  # noqa: E402
+from UserPromptSubmit.context_history_injection import get_context_history_injection
+from UserPromptSubmit.firecrawl_injection import get_firecrawl_injection  # noqa: E402
+from UserPromptSubmit.git_injection import get_git_injection  # noqa: E402
+from UserPromptSubmit.lsp_diagnostics_injection import get_lsp_diagnostics_injection
+from UserPromptSubmit.mcp_injector import get_mcp_injection  # noqa: E402
+from UserPromptSubmit.prefix_injection import get_prefix  # noqa: E402
+from UserPromptSubmit.runtime_monitoring_injection import (
+    get_runtime_monitoring_injection,
+)
+from UserPromptSubmit.suffix_injection import get_suffix  # noqa: E402
+from UserPromptSubmit.test_status_injection import get_test_status_injection
+from UserPromptSubmit.tree_sitter_injection import (  # noqa: E402
     create_tree_sitter_injection,
     get_tree_sitter_hints,
 )
-from UserPromptSubmit.trigger_injection import get_trigger_injection
-from UserPromptSubmit.zen_injection import get_zen_injection
+from UserPromptSubmit.trigger_injection import get_trigger_injection  # noqa: E402
+from UserPromptSubmit.zen_injection import get_zen_injection  # noqa: E402
 
 
-def handle(data):
-    """Handle UserPromptSubmit hook events."""
+async def handle_async(data):
+    """Async handle UserPromptSubmit hook events with parallel execution."""
     # Extract user prompt from data if available
     user_prompt = data.get("userPrompt", "") if isinstance(data, dict) else ""
 
     # Get project directory from environment
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 
-    prefix = get_prefix()
-    git_injection = get_git_injection(project_dir)
-    zen_instruction = get_zen_injection(user_prompt)
-    content_instruction = get_content_injection(user_prompt)
-    trigger_instruction = get_trigger_injection(user_prompt)
-    tree_sitter_injection = create_tree_sitter_injection(user_prompt)
-    tree_sitter_hints = get_tree_sitter_hints(user_prompt)
-    mcp_recommendations = get_mcp_injection(user_prompt)
-    suffix = get_suffix(user_prompt)
-
     # Import and get agent recommendations
     from UserPromptSubmit.agent_injector import get_agent_injection
 
-    agent_recommendations = get_agent_injection(user_prompt)
+    # Create async tasks for parallel execution
+    # Group 1: Basic injections (these are already sync, run directly)
+    prefix = get_prefix() if INJECTION_CIRCUIT_BREAKERS["prefix"] else ""
+    zen_instruction = get_zen_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["zen"] else ""
+    content_instruction = get_content_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["content"] else ""
+    trigger_instruction = get_trigger_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["trigger"] else ""
+    tree_sitter_injection = create_tree_sitter_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["tree_sitter"] else ""
+    tree_sitter_hints = get_tree_sitter_hints(user_prompt) if INJECTION_CIRCUIT_BREAKERS["tree_sitter_hints"] else ""
+    mcp_recommendations = get_mcp_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["mcp"] else ""
+    suffix = get_suffix(user_prompt) if INJECTION_CIRCUIT_BREAKERS["suffix"] else ""
+    agent_recommendations = get_agent_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["agent"] else ""
+
+    # Group 2: Async injections that can run in parallel
+    async_tasks = []
+    async_results = {}
+    
+    # Build list of enabled async tasks
+    if INJECTION_CIRCUIT_BREAKERS["git"]:
+        async_tasks.append(("git", get_git_injection(project_dir)))
+    if INJECTION_CIRCUIT_BREAKERS["runtime_monitoring"]:
+        async_tasks.append(("runtime_monitoring", get_runtime_monitoring_injection()))
+    if INJECTION_CIRCUIT_BREAKERS["test_status"]:
+        async_tasks.append(("test_status", get_test_status_injection(user_prompt, project_dir)))
+    if INJECTION_CIRCUIT_BREAKERS["lsp_diagnostics"]:
+        async_tasks.append(("lsp_diagnostics", get_lsp_diagnostics_injection(user_prompt, project_dir)))
+    if INJECTION_CIRCUIT_BREAKERS["context_history"]:
+        async_tasks.append(("context_history", get_context_history_injection(user_prompt, project_dir)))
+    if INJECTION_CIRCUIT_BREAKERS["firecrawl"]:
+        async_tasks.append(("firecrawl", get_firecrawl_injection(user_prompt, project_dir)))
+    
+    # Execute enabled async tasks in parallel
+    if async_tasks:
+        task_names, task_coroutines = zip(*async_tasks)
+        results = await asyncio.gather(*task_coroutines)
+        async_results = dict(zip(task_names, results))
+    
+    # Get results with defaults for disabled injections
+    git_injection = async_results.get("git", "")
+    runtime_monitoring = async_results.get("runtime_monitoring", "")
+    test_status = async_results.get("test_status", "")
+    lsp_diagnostics = async_results.get("lsp_diagnostics", "")
+    context_history = async_results.get("context_history", "")
+    firecrawl_context = async_results.get("firecrawl", "")
 
     # Build additional context - combine all injections
-    # Git injection goes early for foundational context
-    additional_context = (
-        f"{git_injection}\n{zen_instruction}{content_instruction}{prefix}{trigger_instruction}"
+    # Git injection goes early for foundational context, firecrawl provides web context
+    raw_context = (
+        f"{git_injection}\n{runtime_monitoring}{test_status}{lsp_diagnostics}{context_history}"
+        f"{firecrawl_context}{zen_instruction}{content_instruction}{prefix}{trigger_instruction}"
         f"{tree_sitter_injection}{tree_sitter_hints}{mcp_recommendations}{agent_recommendations}{suffix}"
     )
+
+    # Optimize context with AI if enabled
+    ai_optimization_enabled = (
+        INJECTION_CIRCUIT_BREAKERS["ai_optimization"] and
+        os.environ.get("CLAUDE_AI_CONTEXT_OPTIMIZATION", "false").lower() == "true"
+    )
+    if ai_optimization_enabled:
+        additional_context = optimize_injection_sync(user_prompt, raw_context)
+    else:
+        additional_context = raw_context
 
     # Return JSON output with additional context
     output = {
@@ -59,3 +156,22 @@ def handle(data):
 
     print(json.dumps(output))
     sys.exit(0)
+
+
+def handle(data):
+    """Synchronous wrapper for async handle function."""
+    try:
+        # Try to get the current event loop
+        asyncio.get_running_loop()
+
+        # If we're in an async context, use ThreadPoolExecutor
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                lambda: asyncio.run(handle_async(data)),
+            )
+            future.result()
+    except RuntimeError:
+        # No event loop running, safe to create new one
+        asyncio.run(handle_async(data))

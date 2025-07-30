@@ -1,0 +1,24 @@
+[tool.pytest.ini_options]
+markers = [
+    "unit: Unit tests for individual injection modules with mocked dependencies",
+    "integration: Integration tests for module interaction and context assembly",
+    "ai_contract: Contract tests for AI optimization workflow with mocked APIs",
+    "system: End-to-end system tests with minimal mocking (run sparingly)",
+    "performance: Performance tests to ensure hooks don't slow down prompts",
+    "slow: Tests that take significant time to run"
+]
+
+testpaths = ["."]
+python_files = ["hook_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers"
+]
+
+filterwarnings = [
+    "ignore::pytest.PytestUnknownMarkWarning"
+]

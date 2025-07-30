@@ -41,3 +41,4 @@ Thumbs.db
 .claude-indexer
 .ruff_cache
 .pytest_cache
+move-project.sh

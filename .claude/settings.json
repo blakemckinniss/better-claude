@@ -5,6 +5,9 @@
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
     "CLAUDE_PROJECT_DIR": "$CLAUDE_PROJECT_DIR"
   },
+  "permissions": {
+    "additionalDirectories": ["/home/devcontainers/project_repo/"]
+  },
   "enableAllProjectMcpServers": true,
   "hooks": {
     "UserPromptSubmit": [
@@ -12,7 +15,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python $CLAUDE_PROJECT_DIR/.claude/hooks/hook_handler.py"
+            "command": "python $CLAUDE_PROJECT_DIR/.claude/hooks/hook_handler.py",
+            "timeout": 60
           }
         ]
       }

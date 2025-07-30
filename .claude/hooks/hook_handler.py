@@ -8,11 +8,11 @@ import sys
 handlers_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Import logger
-from hook_logger import logger  # type: ignore
+from hook_logger import logger  # type: ignore  # noqa: E402
 
 # Circuit breaker switches - Set to False to disable specific hooks
 ENABLE_USER_PROMPT_SUBMIT = True
-ENABLE_PRE_TOOL_USE = True
+ENABLE_PRE_TOOL_USE = False
 ENABLE_POST_TOOL_USE = True
 ENABLE_NOTIFICATION = False
 ENABLE_STOP = True
