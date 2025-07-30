@@ -30,32 +30,47 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import importlib.util
 
 # Import individual injection functions directly
-from UserPromptSubmit.agent_injector import get_agent_injection
-from UserPromptSubmit.ai_context_optimizer import optimize_injection_sync
-from UserPromptSubmit.content_injection import get_content_injection
-from UserPromptSubmit.context_history_injection import get_context_history_injection
-from UserPromptSubmit.firecrawl_injection import get_firecrawl_injection
-from UserPromptSubmit.git_injection import get_git_injection
-from UserPromptSubmit.lsp_diagnostics_injection import get_lsp_diagnostics_injection
-from UserPromptSubmit.mcp_injector import get_mcp_injection
-from UserPromptSubmit.prefix_injection import get_prefix
-from UserPromptSubmit.runtime_monitoring_injection import (
+from hook_handlers.UserPromptSubmit.agent_injector import get_agent_injection
+from hook_handlers.UserPromptSubmit.ai_context_optimizer import optimize_injection_sync
+from hook_handlers.UserPromptSubmit.content_injection import get_content_injection
+from hook_handlers.UserPromptSubmit.context_history_injection import (
+    get_context_history_injection,
+)
+from hook_handlers.UserPromptSubmit.firecrawl_injection import get_firecrawl_injection
+from hook_handlers.UserPromptSubmit.git_injection import get_git_injection
+from hook_handlers.UserPromptSubmit.lsp_diagnostics_injection import (
+    get_lsp_diagnostics_injection,
+)
+from hook_handlers.UserPromptSubmit.mcp_injector import get_mcp_injection
+from hook_handlers.UserPromptSubmit.prefix_injection import get_prefix
+from hook_handlers.UserPromptSubmit.runtime_monitoring_injection import (
     get_runtime_monitoring_injection,
 )
-from UserPromptSubmit.suffix_injection import get_suffix
-from UserPromptSubmit.test_status_injection import get_test_status_injection
-from UserPromptSubmit.tree_sitter_injection import (
+from hook_handlers.UserPromptSubmit.suffix_injection import get_suffix
+from hook_handlers.UserPromptSubmit.test_status_injection import (
+    get_test_status_injection,
+)
+from hook_handlers.UserPromptSubmit.tree_sitter_injection import (
     create_tree_sitter_injection,
     get_tree_sitter_hints,
 )
-from UserPromptSubmit.trigger_injection import get_trigger_injection
-from UserPromptSubmit.zen_injection import get_zen_injection
+from hook_handlers.UserPromptSubmit.trigger_injection import get_trigger_injection
+from hook_handlers.UserPromptSubmit.zen_injection import get_zen_injection
 
+# Get the absolute path to UserPromptSubmit.py in the hook_handlers directory
+user_prompt_submit_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hook_handlers", "hook_handlers.UserPromptSubmit.py")
 spec = importlib.util.spec_from_file_location(
     "main_handler_module",
-    "UserPromptSubmit.py",
+    user_prompt_submit_path,
 )
+if spec is None:
+    raise ImportError("Could not create module spec for UserPromptSubmit.py")
+
 main_handler_module = importlib.util.module_from_spec(spec)
+
+if spec.loader is None:
+    raise ImportError("Module spec loader is None for UserPromptSubmit.py")
+
 spec.loader.exec_module(main_handler_module)
 
 
@@ -116,7 +131,7 @@ class TestInjectionModules:
     async def test_git_injection_clean_repo(self, mock_project_dir):
         """Test git injection with clean repository."""
         with patch(
-            "UserPromptSubmit.git_injection.GitInjector.run_git_command",
+            "hook_handlers.UserPromptSubmit.git_injection.GitInjector.run_git_command",
         ) as mock_git:
             # Mock git commands for clean repo
             mock_git.side_effect = [
@@ -136,7 +151,7 @@ class TestInjectionModules:
     async def test_git_injection_with_changes(self, mock_project_dir):
         """Test git injection with modified files."""
         with patch(
-            "UserPromptSubmit.git_injection.GitInjector.run_git_command",
+            "hook_handlers.UserPromptSubmit.git_injection.GitInjector.run_git_command",
         ) as mock_git:
             # Mock git commands for repo with changes
             mock_git.side_effect = [
@@ -156,7 +171,7 @@ class TestInjectionModules:
     async def test_git_injection_no_git_repo(self, mock_project_dir):
         """Test git injection when not in git repository."""
         with patch(
-            "UserPromptSubmit.git_injection.GitInjector.is_git_repo",
+            "hook_handlers.UserPromptSubmit.git_injection.GitInjector.is_git_repo",
         ) as mock_is_git:
             # Mock not being in a git repository
             mock_is_git.return_value = False
@@ -205,13 +220,13 @@ class TestInjectionModules:
         assert isinstance(result, str)
 
     @pytest.mark.unit
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.cpu_percent")
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.virtual_memory")
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.disk_usage")
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.Process")
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.process_iter")
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.pids")
-    @patch("UserPromptSubmit.runtime_monitoring_injection.psutil.net_connections")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.cpu_percent")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.virtual_memory")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.disk_usage")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.Process")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.process_iter")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.pids")
+    @patch("hook_handlers.UserPromptSubmit.runtime_monitoring_injection.psutil.net_connections")
     @pytest.mark.asyncio
     async def test_runtime_monitoring_injection(
         self,
@@ -262,7 +277,7 @@ class TestInjectionModules:
             read_data='{"summary": {"passed": 12, "failed": 3, "skipped": 1}, "duration": 2.34, "tests": []}',
         ),
     )
-    @patch("UserPromptSubmit.test_status_injection.Path.glob")
+    @patch("hook_handlers.UserPromptSubmit.test_status_injection.Path.glob")
     @pytest.mark.asyncio
     async def test_test_status_injection_pytest(
         self,
@@ -280,7 +295,7 @@ class TestInjectionModules:
         assert isinstance(result, str)
 
     @pytest.mark.unit
-    @patch("UserPromptSubmit.lsp_diagnostics_injection.os.path.exists")
+    @patch("hook_handlers.UserPromptSubmit.lsp_diagnostics_injection.os.path.exists")
     @patch(
         "builtins.open",
         mock.mock_open(
@@ -305,7 +320,7 @@ class TestInjectionModules:
         assert isinstance(result, str)
 
     @pytest.mark.unit
-    @patch("UserPromptSubmit.context_history_injection.os.path.exists")
+    @patch("hook_handlers.UserPromptSubmit.context_history_injection.os.path.exists")
     @patch("builtins.open", mock.mock_open(read_data="src/auth.py\nsrc/user.py\n"))
     @pytest.mark.asyncio
     async def test_context_history_injection(
@@ -353,7 +368,7 @@ class TestInjectionModules:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    @patch("UserPromptSubmit.firecrawl_injection.FirecrawlClient.search")
+    @patch("hook_handlers.UserPromptSubmit.firecrawl_injection.FirecrawlClient.search")
     async def test_firecrawl_injection_with_search(
         self,
         mock_search,
@@ -383,7 +398,7 @@ class TestInjectionModules:
 
     @pytest.mark.unit
     @pytest.mark.asyncio
-    @patch("UserPromptSubmit.firecrawl_injection.FirecrawlClient.scrape")
+    @patch("hook_handlers.UserPromptSubmit.firecrawl_injection.FirecrawlClient.scrape")
     async def test_firecrawl_injection_with_url_scraping(
         self,
         mock_scrape,
@@ -415,7 +430,7 @@ class TestAIOptimization:
 
     @pytest.mark.asyncio
     @pytest.mark.ai_contract
-    @patch("UserPromptSubmit.ai_context_optimizer.aiohttp.ClientSession.post")
+    @patch("hook_handlers.UserPromptSubmit.ai_context_optimizer.aiohttp.ClientSession.post")
     async def test_ai_optimization_success(
         self,
         mock_post,
@@ -449,7 +464,7 @@ class TestAIOptimization:
 
     @pytest.mark.asyncio
     @pytest.mark.ai_contract
-    @patch("UserPromptSubmit.ai_context_optimizer.aiohttp.ClientSession.post")
+    @patch("hook_handlers.UserPromptSubmit.ai_context_optimizer.aiohttp.ClientSession.post")
     async def test_ai_optimization_api_error(
         self,
         mock_post,
@@ -470,7 +485,7 @@ class TestAIOptimization:
         assert len(result) > 0  # Should fallback to rule-based
 
     @pytest.mark.ai_contract
-    @patch("UserPromptSubmit.ai_context_optimizer.os.environ.get")
+    @patch("hook_handlers.UserPromptSubmit.ai_context_optimizer.os.environ.get")
     def test_ai_optimization_no_api_key(
         self,
         mock_env,
@@ -531,11 +546,11 @@ class TestIntegration:
 
     @pytest.mark.integration
     @patch.dict("os.environ", {"CLAUDE_PROJECT_DIR": "/test/project"})
-    @patch("UserPromptSubmit.git_injection.get_git_injection")
-    @patch("UserPromptSubmit.zen_injection.get_zen_injection")
-    @patch("UserPromptSubmit.content_injection.get_content_injection")
+    @patch("hook_handlers.UserPromptSubmit.git_injection.get_git_injection")
+    @patch("hook_handlers.UserPromptSubmit.zen_injection.get_zen_injection")
+    @patch("hook_handlers.UserPromptSubmit.content_injection.get_content_injection")
     @patch(
-        "UserPromptSubmit.runtime_monitoring_injection.get_runtime_monitoring_injection",
+        "hook_handlers.UserPromptSubmit.runtime_monitoring_injection.get_runtime_monitoring_injection",
     )
     def test_context_assembly_without_ai(
         self,
@@ -572,7 +587,7 @@ class TestIntegration:
             "CLAUDE_AI_CONTEXT_OPTIMIZATION": "true",
         },
     )
-    @patch("UserPromptSubmit.ai_context_optimizer.optimize_injection_sync")
+    @patch("hook_handlers.UserPromptSubmit.ai_context_optimizer.optimize_injection_sync")
     def test_context_assembly_with_ai(self, mock_optimize):
         """Test context assembly with AI optimization enabled."""
         # Mock AI optimization
@@ -658,7 +673,7 @@ class TestPerformance:
         )
 
     @pytest.mark.performance
-    @patch("UserPromptSubmit.ai_context_optimizer.optimize_injection_sync")
+    @patch("hook_handlers.UserPromptSubmit.ai_context_optimizer.optimize_injection_sync")
     def test_ai_optimization_timeout_enforcement(
         self,
         mock_optimize,
@@ -692,7 +707,7 @@ class TestErrorHandling:
     """Test error handling and graceful degradation."""
 
     @pytest.mark.unit
-    @patch("UserPromptSubmit.git_injection.get_git_injection")
+    @patch("hook_handlers.UserPromptSubmit.git_injection.get_git_injection")
     def test_injection_module_exception_handling(self, mock_git_injection):
         """Test that exceptions in injection modules don't crash the handler."""
         # Mock an injection that raises an exception

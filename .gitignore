@@ -36,9 +36,11 @@ Thumbs.db
 # Logs
 *.log
 .claude/hooks/hook_logs/
+.claude/hooks/session_state/
 
 *.tests_
 .claude-indexer
 .ruff_cache
 .pytest_cache
 move-project.sh
+.mypy_cache/

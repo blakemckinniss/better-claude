@@ -1,69 +1,21 @@
 #!/usr/bin/env python3
 """SessionStart hook handler for project initialization."""
 
-import fnmatch
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
-from typing import List, Set
+from typing import List
 
+# Add current directory to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-def load_gitignore_patterns(project_dir: str) -> List[str]:
-    """Load patterns from .gitignore file.
-
-    Args:
-        project_dir: Path to the project directory
-
-    Returns:
-        List of gitignore patterns
-    """
-    gitignore_path = Path(project_dir) / ".gitignore"
-    patterns = []
-
-    if gitignore_path.exists():
-        with open(gitignore_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    patterns.append(line)
-
-    return patterns
-
-
-def should_ignore(path: Path, patterns: List[str], project_path: Path) -> bool:
-    """Check if a path should be ignored based on gitignore patterns.
-
-    Args:
-        path: Path to check
-        patterns: List of gitignore patterns
-        project_path: Project root path
-
-    Returns:
-        True if the path should be ignored
-    """
-    rel_path = path.relative_to(project_path)
-    rel_path_str = str(rel_path)
-
-    for pattern in patterns:
-        if pattern.endswith("/"):
-            pattern_base = pattern.rstrip("/")
-            for part in rel_path.parts:
-                if fnmatch.fnmatch(part, pattern_base):
-                    return True
-
-        if fnmatch.fnmatch(rel_path_str, pattern):
-            return True
-
-        for part in rel_path.parts:
-            if fnmatch.fnmatch(part, pattern):
-                return True
-
-    return False
+from UserPromptSubmit.session_state import SessionState
 
 
 def list_project_files(project_dir: str) -> List[str]:
-    """List all files in the project directory recursively, respecting .gitignore.
+    """List all files tracked by git in the project directory.
 
     Args:
         project_dir: Path to the project directory
@@ -71,21 +23,30 @@ def list_project_files(project_dir: str) -> List[str]:
     Returns:
         Sorted list of file paths relative to project root
     """
-    files = []
-    project_path = Path(project_dir)
-    gitignore_patterns = load_gitignore_patterns(project_dir)
-    skip_dirs: Set[str] = {".git"}
-
-    for path in project_path.rglob("*"):
-        if any(part in skip_dirs for part in path.parts):
-            continue
-
-        if path.is_file():
-            if not should_ignore(path, gitignore_patterns, project_path):
-                rel_path = path.relative_to(project_path)
-                files.append(str(rel_path))
-
-    return sorted(files)
+    try:
+        # Use git ls-files to get all tracked files
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        # Split output into lines and filter out empty strings
+        files = [f for f in result.stdout.strip().split('\n') if f]
+        
+        return sorted(files)
+    except subprocess.CalledProcessError as e:
+        # Fallback to empty list if git command fails
+        if os.environ.get("DEBUG_HOOKS"):
+            print(f"Error running git ls-files: {e}", file=sys.stderr)
+        return []
+    except FileNotFoundError:
+        # Git not installed
+        if os.environ.get("DEBUG_HOOKS"):
+            print("Git not found in PATH", file=sys.stderr)
+        return []
 
 
 def format_core_tools_intro() -> str:
@@ -148,6 +109,17 @@ def handle(data: dict) -> None:
         data: Hook event data
     """
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
+    
+    # Clear session state for fresh start
+    try:
+        session_state = SessionState(project_dir)
+        session_state.clear_state()
+        if os.environ.get("DEBUG_HOOKS"):
+            print("Cleared session injection state", file=sys.stderr)
+    except Exception as e:
+        if os.environ.get("DEBUG_HOOKS"):
+            print(f"Error clearing session state: {e}", file=sys.stderr)
+
     files = list_project_files(project_dir)
 
     output_lines = []
@@ -170,6 +142,7 @@ def handle(data: dict) -> None:
             "hook": "SessionStart",
             "project_dir": project_dir,
             "files_count": len(files),
-            "files": files,
+            "files": files[:10] if len(files) > 10 else files,  # Limit debug output
+            "truncated": len(files) > 10
         }
         print(json.dumps(debug_data, indent=2), file=sys.stderr)

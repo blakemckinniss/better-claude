@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 from datetime import datetime
+from pathlib import Path
 
 
 def handle(data):
@@ -17,7 +18,11 @@ def handle(data):
     print(f"Received data: {json.dumps(data, indent=2)}", file=sys.stderr)
 
     # Clean up hook_logs subfolders, keeping only the latest 5 files
-    hook_logs_dir = ".claude/hooks/hook_logs"
+    project_root = os.environ.get(
+        "CLAUDE_PROJECT_DIR",
+        "/home/devcontainers/better-claude",
+    )
+    hook_logs_dir = os.path.join(project_root, ".claude/hooks/hook_logs")
     if os.path.exists(hook_logs_dir):
         print(
             f"Cleaning up contents of subfolders in {hook_logs_dir} (keeping latest 5 files)",
@@ -66,6 +71,10 @@ def handle(data):
         f.write(f"[{timestamp}] Claude Code session completed\n")
 
     # New functionality: Log last Claude message from transcript
+    # Initialize variables to avoid "possibly unbound" errors
+    last_claude_message = None
+    text_content = ""
+    
     try:
         # Get transcript path from data if available
         transcript_path = data.get("transcript_path")
@@ -89,7 +98,6 @@ def handle(data):
 
         if transcript_path and os.path.exists(transcript_path):
             # Read the transcript file
-            last_claude_message = None
 
             with open(transcript_path) as f:
                 line_count = 0
@@ -121,7 +129,10 @@ def handle(data):
             # Log the last Claude message if found
             if last_claude_message:
                 # Claude Code always runs from the project root
-                stop_log_dir = ".claude/hooks/hook_logs/stop_hook_logs"
+                stop_log_dir = os.path.join(
+                    project_root,
+                    ".claude/hooks/hook_logs/stop_hook_logs",
+                )
                 os.makedirs(stop_log_dir, exist_ok=True)
 
                 # Create a unique log filename with timestamp
@@ -165,7 +176,10 @@ def handle(data):
     except Exception as e:
         # Log any errors but don't crash the hook
         # Initialize stop_log_dir to avoid "possibly unbound" error
-        stop_log_dir = ".claude/hooks/hook_logs/stop_hook_logs"
+        stop_log_dir = os.path.join(
+            project_root,
+            ".claude/hooks/hook_logs/stop_hook_logs",
+        )
         os.makedirs(stop_log_dir, exist_ok=True)
 
         error_log_path = os.path.join(
@@ -174,5 +188,84 @@ def handle(data):
         )
         with open(error_log_path, "w") as f:
             f.write(f"Error logging Claude message: {str(e)}\n")
+
+    # Auto-commit functionality
+    try:
+        # Check if auto-commit is enabled via environment variable
+        auto_commit_enabled = (
+            os.environ.get("CLAUDE_AUTO_COMMIT", "false").lower() == "true"
+        )
+
+        if auto_commit_enabled:
+            print("Auto-commit is enabled, checking for changes...", file=sys.stderr)
+
+            # Change to project directory
+            original_dir = os.getcwd()
+            os.chdir(project_root)
+
+            # Check git status
+            import subprocess
+
+            # Check if there are any changes
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+            )
+
+            if status_result.returncode == 0 and status_result.stdout.strip():
+                print("Changes detected, preparing to commit...", file=sys.stderr)
+
+                # Add all changes
+                add_result = subprocess.run(
+                    ["git", "add", "-A"],
+                    capture_output=True,
+                    text=True,
+                )
+
+                if add_result.returncode == 0:
+                    # Generate commit message
+                    commit_message = f"Auto-commit: Session ended at {timestamp}"
+
+                    # If we have the last Claude message, use it to create a better commit message
+                    if "last_claude_message" in locals() and last_claude_message:
+                        # Extract first line of Claude's response as commit summary
+                        if "text_content" in locals() and text_content:
+                            first_line = text_content.strip().split("\n")[0]
+                            # Truncate to 50 chars for commit message convention
+                            if len(first_line) > 50:
+                                first_line = f"{first_line[:47]}..."
+                            commit_message = f"Auto-commit: {first_line}"
+
+                    # Commit changes
+                    commit_result = subprocess.run(
+                        ["git", "commit", "-m", commit_message],
+                        capture_output=True,
+                        text=True,
+                    )
+
+                    if commit_result.returncode == 0:
+                        print(
+                            f"Successfully auto-committed changes: {commit_message}",
+                            file=sys.stderr,
+                        )
+                        print(f"Commit output: {commit_result.stdout}", file=sys.stderr)
+                    else:
+                        print(
+                            f"Failed to commit: {commit_result.stderr}", file=sys.stderr
+                        )
+                else:
+                    print(
+                        f"Failed to add changes: {add_result.stderr}", file=sys.stderr
+                    )
+            else:
+                print("No changes to commit", file=sys.stderr)
+
+            # Return to original directory
+            os.chdir(original_dir)
+
+    except Exception as e:
+        print(f"Error during auto-commit: {str(e)}", file=sys.stderr)
+        # Don't fail the hook due to auto-commit errors
 
     sys.exit(0)

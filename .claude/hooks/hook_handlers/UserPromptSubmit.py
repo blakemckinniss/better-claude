@@ -15,16 +15,16 @@ INJECTION_CIRCUIT_BREAKERS = {
     "zen": True,
     "content": True,
     "trigger": True,
-    "tree_sitter": True,
-    "tree_sitter_hints": True,
+    "tree_sitter": False,
+    "tree_sitter_hints": False,
     "mcp": True,
     "agent": True,
-    "git": True,
+    "git": False,
     "runtime_monitoring": False,
     "test_status": False,
-    "lsp_diagnostics": True,
-    "context_history": True,
-    "firecrawl": True,
+    "lsp_diagnostics": False,
+    "context_history": False,
+    "firecrawl": False,
     "ai_optimization": True,  # Controls AI context optimization
 }
 
@@ -63,6 +63,7 @@ from UserPromptSubmit.prefix_injection import get_prefix  # noqa: E402
 from UserPromptSubmit.runtime_monitoring_injection import (
     get_runtime_monitoring_injection,
 )
+from UserPromptSubmit.session_state import SessionState  # noqa: E402
 from UserPromptSubmit.suffix_injection import get_suffix  # noqa: E402
 from UserPromptSubmit.test_status_injection import get_test_status_injection
 from UserPromptSubmit.tree_sitter_injection import (  # noqa: E402
@@ -73,10 +74,86 @@ from UserPromptSubmit.trigger_injection import get_trigger_injection  # noqa: E4
 from UserPromptSubmit.zen_injection import get_zen_injection  # noqa: E402
 
 
+def should_inject_context(data):
+    """Determine if we should inject context based on session state and transcript."""
+    try:
+        # Get transcript path from hook data
+        transcript_path = data.get("transcript_path")
+        
+        # Initialize session state manager
+        session_state = SessionState()
+        
+        # First check session state rules (forced injection, message count, etc.)
+        if session_state.should_inject(transcript_path):
+            # This will return True for:
+            # - First time (inject_next is True by default)
+            # - After SubagentStop or PreCompact marked for injection
+            # - After 5 messages
+            # - When transcript changes
+            return True
+        
+        # If session state says no injection needed, check if this is truly the first prompt
+        # in the transcript (for cases where state was lost or corrupted)
+        if not transcript_path or not os.path.exists(transcript_path):
+            return True
+        
+        # Check if this transcript has any user messages yet
+        user_message_count = 0
+        try:
+            with open(transcript_path, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            entry = json.loads(line)
+                            if entry.get("type") == "user" and "message" in entry:
+                                user_message_count += 1
+                        except json.JSONDecodeError:
+                            continue
+        except (IOError, OSError) as e:
+            print(f"Error reading transcript {transcript_path}: {e}", file=sys.stderr)
+            return True
+        
+        # If no user messages in transcript, force injection
+        if user_message_count == 0:
+            return True
+        
+        return False
+        
+    except Exception as e:
+        # On any error, default to including context (safer option)
+        print(f"Error checking injection status: {e}", file=sys.stderr)
+        return True
+
+
 async def handle_async(data):
     """Async handle UserPromptSubmit hook events with parallel execution."""
     # Extract user prompt from data if available
     user_prompt = data.get("userPrompt", "") if isinstance(data, dict) else ""
+    
+    # Check if we should inject context
+    should_inject = should_inject_context(data)
+    
+    # Initialize session state for tracking
+    session_state = SessionState()
+    transcript_path = data.get("transcript_path")
+    
+    if not should_inject:
+        # Increment message count for next check
+        session_state.increment_message_count()
+        
+        # Return minimal context for continued conversation
+        output = {
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": "",  # Empty context for subsequent prompts
+            },
+        }
+        print(json.dumps(output))
+        sys.exit(0)
+    
+    # Mark that we're injecting context
+    # Ensure transcript_path is a valid string (fallback to empty string if None)
+    session_state.mark_injected(str(transcript_path) if transcript_path is not None else "")
 
     # Get project directory from environment
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
@@ -175,3 +252,9 @@ def handle(data):
     except RuntimeError:
         # No event loop running, safe to create new one
         asyncio.run(handle_async(data))
+
+
+if __name__ == "__main__":
+    # When called directly, read data from stdin
+    data = json.loads(sys.stdin.read())
+    handle(data)
