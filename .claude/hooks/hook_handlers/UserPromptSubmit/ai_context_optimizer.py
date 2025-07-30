@@ -36,10 +36,6 @@ class AIContextOptimizer:
 
     def _create_optimization_prompt(self, user_prompt: str, raw_context: str) -> Tuple[str, str]:
         """Create system and user prompts for the context optimization AI."""
-        # Analyze if the user is asking about AI roles/agents/prompts
-        role_keywords = ["role", "agent", "prompt", "assistant", "ai role", "specialized role", "create role"]
-        is_role_request = any(keyword in user_prompt.lower() for keyword in role_keywords)
-        
         # Check if context contains special data types
         has_firecrawl = "<firecrawl-context>" in raw_context
         has_git = "git" in raw_context.lower() or "branch:" in raw_context.lower()
@@ -47,101 +43,48 @@ class AIContextOptimizer:
         has_tree_sitter = "<tree-sitter" in raw_context
         has_zen = "<zen-" in raw_context
         has_errors = any(word in raw_context.lower() for word in ["error", "fail", "critical", "warning"])
+        has_session = "session" in raw_context.lower() or "SessionStart" in raw_context
         
-        if is_role_request:
-            # System prompt for role creation
-            system_prompt = """You are an AI assistant role architect. Your job is to analyze user requests and context data to create specialized AI assistant roles.
+        # Always optimize context to create an enhanced instruction prompt
+        system_prompt = """You are an AI prompt engineer specializing in optimizing context for Claude Code.
 
-Your output must follow the exact format specified. Focus on:
-1. Understanding the user's actual goal
-2. Extracting only relevant context information
-3. Creating a role that directly addresses their needs
-4. Including real data from context, not generic placeholders
-
-Key principles:
-- Be specific and task-focused
-- Include concrete context details
-- Highlight critical information
-- Create actionable guidance"""
-
-            # User prompt with structured data
-            user_content = f"""Create a specialized AI assistant role based on this request and context.
-
-USER'S REQUEST:
-{user_prompt}
-
-AVAILABLE CONTEXT DATA:
-{raw_context}
-
-OUTPUT REQUIREMENTS:
-Generate a role definition following this EXACT structure:
-
-# Role: [Specific Role Name Based on User's Task]
-
-## Profile
-- language: English
-- description: [Description specific to handling the user's request]
-- expertise: [Relevant expertise areas]
-- focus: [Primary objectives]
-
-## Current Context
-[Key information from the raw context, including:]
-{f"- Git repository status and recent changes" if has_git else ""}
-{f"- Web search results and scraped content" if has_firecrawl else ""}
-{f"- Available MCP tools and their capabilities" if has_mcp else ""}
-{f"- Code analysis from tree-sitter" if has_tree_sitter else ""}
-{f"- ZEN agent recommendations" if has_zen else ""}
-{f"- Critical errors or warnings" if has_errors else ""}
-- Other relevant technical details
-
-## Task Analysis
-[Clear explanation of what the user needs and how to approach it]
-
-## Key Priorities
-1. [Most critical aspect]
-2. [Secondary focus]
-3. [Additional priority]
-
-## Recommended Approach
-[Specific, actionable steps based on the context]"""
-
-        else:
-            # System prompt for context optimization (non-role requests)
-            system_prompt = f"""You are a context optimization specialist. Your job is to analyze user questions and raw context data to extract and organize ONLY the most relevant information.
+Your job is to analyze the user's question and the provided context, then create an enhanced instruction that will help Claude provide the best possible answer.
 
 Key objectives:
-1. Understand what the user is actually asking
-2. Extract context that directly helps answer their question
-3. Remove irrelevant information
-4. Organize remaining context clearly
-5. Highlight critical details
+1. Understand what the user is asking
+2. Extract ALL relevant information from the context that could help
+3. Create a clear, structured prompt that guides Claude
+4. Include specific details from the context when relevant
+5. Maintain the user's original question but enhance it with context
 
-Context types to consider:
-{f"- Web search results and scraped content (Firecrawl data)" if has_firecrawl else ""}
-{f"- Git repository status and changes" if has_git else ""}
-{f"- MCP tool recommendations and capabilities" if has_mcp else ""}
-{f"- Code structure analysis from tree-sitter" if has_tree_sitter else ""}
-{f"- ZEN agent analysis and recommendations" if has_zen else ""}
-{f"- Errors, warnings, and critical issues" if has_errors else ""}
+Context types you may encounter:
+{f"- Git repository information (branches, commits, status)" if has_git else ""}
+{f"- MCP tool descriptions and capabilities" if has_mcp else ""}
+{f"- Web search results or scraped content" if has_firecrawl else ""}
+{f"- Code analysis from tree-sitter" if has_tree_sitter else ""}
+{f"- ZEN agent recommendations" if has_zen else ""}
+{f"- Errors, warnings, or issues" if has_errors else ""}
+{f"- Session information and history" if has_session else ""}
 
-IMPORTANT RULES:
-- Do NOT create AI roles or assistant definitions
-- Do NOT include generic advice
-- Do NOT add system instructions unless directly relevant
-- ONLY include context that helps answer the specific question
-- Keep output concise and focused"""
+OUTPUT FORMAT:
+Create a clear, actionable prompt that:
+1. Restates the user's question with clarity
+2. Provides relevant context that helps answer it
+3. Guides Claude on how to approach the answer
+4. Highlights any critical information from the context
 
-            # User prompt with the actual data
-            user_content = f"""Optimize this context for the user's question.
+DO NOT create AI roles or lengthy system instructions. Focus on creating a concise, enhanced version of the user's request."""
 
-USER'S QUESTION:
+        user_content = f"""USER'S QUESTION:
 {user_prompt}
 
-RAW CONTEXT TO OPTIMIZE:
+AVAILABLE CONTEXT:
 {raw_context}
 
 TASK:
-Extract and organize only the information that directly helps answer the user's question. Remove all irrelevant details."""
+Create an optimized instruction prompt that helps Claude answer the user's question effectively. Include relevant context details that enhance understanding."""
+        
+        # Structure preserved for potential future use
 
         return system_prompt, user_content
 
@@ -232,10 +175,6 @@ Extract and organize only the information that directly helps answer the user's 
                 priority_lines.append(line)
             else:
                 normal_lines.append(line)
-
-        # Check if this is a role/agent request
-        role_keywords = ["role", "agent", "prompt", "assistant", "ai role", "specialized role", "create role"]
-        is_role_request = any(keyword in user_prompt.lower() for keyword in role_keywords)
         
         # Identify different types of injected content
         context_sections = {
@@ -245,6 +184,7 @@ Extract and organize only the information that directly helps answer the user's 
             "tree_sitter": [],
             "firecrawl": [],
             "errors": priority_lines,
+            "session": [],
             "other": []
         }
         
@@ -260,119 +200,64 @@ Extract and organize only the information that directly helps answer the user's 
                 context_sections["tree_sitter"].append(line)
             elif "<firecrawl" in line:
                 context_sections["firecrawl"].append(line)
+            elif "session" in line_lower or "SessionStart" in line:
+                context_sections["session"].append(line)
             elif line not in priority_lines:
                 context_sections["other"].append(line)
         
-        if is_role_request:
-            # Detect user intent for role creation
-            intent_keywords = {
-                "debug": ["debug", "error", "fix", "issue", "problem", "bug"],
-                "implement": ["implement", "create", "build", "add", "develop", "feature"],
-                "analyze": ["analyze", "understand", "explain", "review", "check"],
-                "optimize": ["optimize", "improve", "performance", "speed", "refactor"],
-                "test": ["test", "coverage", "pytest", "jest", "unit"],
-                "git": ["git", "commit", "merge", "branch", "pull"],
-            }
-
-            detected_intent = "Development"
-            for intent, keywords in intent_keywords.items():
-                if any(keyword in user_prompt.lower() for keyword in keywords):
-                    detected_intent = intent
-                    break
-
-            # Create structured fallback with simplified format
-            output = "<!-- Context optimized by rules (AI unavailable) -->\n\n"
-            output += f"# Role: {detected_intent.title()} Assistant\n\n"
-            output += "## Profile\n"
-            output += "- language: English\n"
-            output += f"- description: Assistant specialized in {detected_intent} tasks\n"
-            output += f"- expertise: {detected_intent.title()} and software development\n"
-            output += f"- focus: Helping with the current {detected_intent} request\n\n"
-
-            output += "## Current Context\n"
-
-            # Add relevant context sections
-            if context_sections["git"]:
-                output += "Git Status:\n"
-                for line in context_sections["git"][:5]:
-                    output += f"- {line.strip()}\n"
-                output += "\n"
-
-            if context_sections["errors"]:
-                output += "Critical Issues Found:\n"
-                for line in context_sections["errors"][:5]:
-                    output += f"- {line.strip()}\n"
-                output += "\n"
-                
-            if context_sections["mcp"]:
-                output += "Available MCP Tools:\n"
-                for line in context_sections["mcp"][:3]:
-                    output += f"- {line.strip()}\n"
-                output += "\n"
-
-            output += "Other Context:\n"
-            for line in context_sections["other"][:5]:
-                if line.strip():
-                    output += f"- {line.strip()}\n"
-
-            output += "\n## Task Analysis\n"
-            output += f"User is requesting help with {detected_intent} based on the prompt.\n"
-
-            output += "\n## Key Priorities\n"
-            output += f"1. Address the {detected_intent} request directly\n"
-            if context_sections["errors"]:
-                output += "2. Resolve any errors or warnings found in context\n"
-                output += "3. Provide clear, actionable guidance\n"
-            else:
-                output += "2. Use available context effectively\n"
-                output += "3. Provide clear, actionable guidance\n"
-
-            output += "\n## Recommended Approach\n"
-            output += f"Focus on {detected_intent}-related assistance using the available context.\n"
+        # Create an enhanced prompt using rule-based approach
+        output = "<!-- Context optimized by rules (AI unavailable) -->\n\n"
+        output += f"**User Question**: {user_prompt}\n\n"
+        
+        # Add relevant context sections
+        if context_sections["errors"]:
+            output += "**Important Issues Found**:\n"
+            for line in context_sections["errors"][:5]:
+                output += f"- {line.strip()}\n"
+            output += "\n"
+        
+        if context_sections["git"]:
+            output += "**Git Context**:\n"
+            for line in context_sections["git"][:3]:
+                output += f"- {line.strip()}\n"
+            output += "\n"
+        
+        if context_sections["mcp"]:
+            output += "**Available MCP Tools**:\n"
+            for line in context_sections["mcp"][:5]:
+                output += f"- {line.strip()}\n"
+            output += "\n"
+        
+        if context_sections["zen"]:
+            output += "**ZEN Agent Recommendations**:\n"
+            for line in context_sections["zen"][:3]:
+                output += f"- {line.strip()}\n"
+            output += "\n"
+        
+        if context_sections["firecrawl"]:
+            output += "**Web Search Results**:\n"
+            for line in context_sections["firecrawl"][:5]:
+                output += f"- {line.strip()}\n"
+            output += "\n"
+        
+        if context_sections["session"]:
+            output += "**Session Information**:\n"
+            for line in context_sections["session"][:3]:
+                output += f"- {line.strip()}\n"
+            output += "\n"
+        
+        # Add guidance based on question type
+        output += "**Approach**: "
+        question_lower = user_prompt.lower()
+        if any(word in question_lower for word in ["error", "bug", "fix", "issue", "problem"]):
+            output += "Focus on debugging and error resolution using the context above.\n"
+        elif any(word in question_lower for word in ["implement", "create", "build", "add"]):
+            output += "Use the available tools and context to implement the requested feature.\n"
+        elif any(word in question_lower for word in ["explain", "what", "how", "why"]):
+            output += "Provide a clear explanation using any relevant context available.\n"
         else:
-            # For non-role requests, organize relevant context based on the question
-            output = "<!-- Context optimized by rules (AI unavailable) -->\n\n"
-            output += "## Relevant Context\n\n"
-            
-            # Determine what context is relevant based on the question
-            question_lower = user_prompt.lower()
-            
-            if context_sections["errors"]:
-                output += "### Important Issues:\n"
-                for line in context_sections["errors"][:5]:
-                    output += f"- {line.strip()}\n"
-                output += "\n"
-            
-            # Include git info if relevant
-            if any(word in question_lower for word in ["git", "commit", "branch", "merge", "version"]):
-                if context_sections["git"]:
-                    output += "### Git Information:\n"
-                    for line in context_sections["git"][:5]:
-                        output += f"- {line.strip()}\n"
-                    output += "\n"
-            
-            # Include MCP info if asking about tools/capabilities
-            if any(word in question_lower for word in ["tool", "mcp", "capability", "function"]):
-                if context_sections["mcp"]:
-                    output += "### Available Tools:\n"
-                    for line in context_sections["mcp"][:5]:
-                        output += f"- {line.strip()}\n"
-                    output += "\n"
-            
-            # Include web search results if relevant
-            if context_sections["firecrawl"]:
-                output += "### Web Search Results:\n"
-                for line in context_sections["firecrawl"][:5]:
-                    output += f"- {line.strip()}\n"
-                output += "\n"
-            
-            # Add some general context
-            if context_sections["other"]:
-                output += "### Additional Context:\n"
-                for line in context_sections["other"][:10]:
-                    if line.strip():
-                        output += f"- {line.strip()}\n"
-
+            output += "Address the user's request using the context provided above.\n"
+        
         return output
 
     async def optimize_context(self, user_prompt: str, raw_context: str) -> str:
