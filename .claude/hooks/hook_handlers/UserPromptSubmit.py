@@ -13,22 +13,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Circuit breaker configuration for enabling/disabling injections
 # Set to False to disable specific injections
 INJECTION_CIRCUIT_BREAKERS = {
-    "prefix": True,
-    "suffix": True,
-    "zen": True,
-    "content": True,
-    "trigger": True,
-    "tree_sitter": True,
-    "tree_sitter_hints": True,
-    "mcp": True,
-    "agent": True,
-    "git": True,
-    "runtime_monitoring": False,
-    "test_status": False,
-    "lsp_diagnostics": False,
-    "context_history": True,
-    "firecrawl": False,
-    "ai_optimization": True,  # Controls AI context optimization
+    "enhanced_ai_optimizer": True,  # AI context optimization
+    "unified_smart_advisor": True,  # Zen, agent, content, trigger
+    "code_intelligence_hub": True,  # Tree-sitter, LSP diagnostics
+    "system_monitor": True,  # Runtime monitoring, test status, context history
+    "static_content": True,  # Prefix, suffix
+    "context_revival": True,  # Historical context injection
+    "git": True,  # Git injection (standalone)
+    "mcp": True,  # MCP injection (standalone)
+    "firecrawl": False,  # Firecrawl injection (disabled by default)
 }
 
 # Pre-compute enabled injections for performance
@@ -111,26 +104,28 @@ def load_env_file():
 # Load .env file early
 load_env_file()
 
-from UserPromptSubmit.ai_context_optimizer import optimize_injection_sync  # noqa: E402
-from UserPromptSubmit.content_injection import get_content_injection  # noqa: E402
-from UserPromptSubmit.context_history_injection import get_context_history_injection
+
+# Import consolidated injectors and remaining standalone injectors
+from UserPromptSubmit.code_intelligence_hub import (
+    create_code_intelligence_injection,
+)  # noqa: E402
+from UserPromptSubmit.enhanced_ai_optimizer import (
+    optimize_injection_enhanced_sync,
+)  # noqa: E402
 from UserPromptSubmit.firecrawl_injection import get_firecrawl_injection  # noqa: E402
 from UserPromptSubmit.git_injection import get_git_injection  # noqa: E402
-from UserPromptSubmit.lsp_diagnostics_injection import get_lsp_diagnostics_injection
 from UserPromptSubmit.mcp_injector import get_mcp_injection  # noqa: E402
-from UserPromptSubmit.prefix_injection import get_prefix  # noqa: E402
-from UserPromptSubmit.runtime_monitoring_injection import (
-    get_runtime_monitoring_injection,
-)
 from UserPromptSubmit.session_state import SessionState  # noqa: E402
-from UserPromptSubmit.suffix_injection import get_suffix  # noqa: E402
-from UserPromptSubmit.test_status_injection import get_test_status_injection
-from UserPromptSubmit.tree_sitter_injection import (  # noqa: E402
-    create_tree_sitter_injection,
-    get_tree_sitter_hints,
-)
-from UserPromptSubmit.trigger_injection import get_trigger_injection  # noqa: E402
-from UserPromptSubmit.zen_injection import get_zen_injection  # noqa: E402
+from UserPromptSubmit.static_content import get_static_content_injection  # noqa: E402
+from UserPromptSubmit.system_monitor import (
+    get_system_monitoring_injection,
+)  # noqa: E402
+from UserPromptSubmit.unified_smart_advisor import (
+    get_smart_recommendations,
+)  # noqa: E402
+from UserPromptSubmit.context_revival import (
+    get_context_revival_injection,
+)  # noqa: E402
 
 
 def read_transcript_cached(transcript_path: str) -> Optional[bytes]:
@@ -242,70 +237,47 @@ async def handle_async(data):
     # Get project directory from environment
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 
-    # Import and get agent recommendations
-    from UserPromptSubmit.agent_injector import get_agent_injection
-
     # Create ALL tasks for true parallel execution
     all_tasks = []
     task_names = []
 
-    # Add sync injections wrapped in asyncio.to_thread for true parallelism
-    if ENABLED_INJECTIONS.get("prefix"):
-        all_tasks.append(asyncio.to_thread(get_prefix))
-        task_names.append("prefix")
+    # Add consolidated injectors wrapped in asyncio.to_thread for true parallelism
+    if ENABLED_INJECTIONS.get("unified_smart_advisor"):
+        all_tasks.append(asyncio.to_thread(get_smart_recommendations, user_prompt))
+        task_names.append("unified_smart_advisor")
 
-    if ENABLED_INJECTIONS.get("zen"):
-        all_tasks.append(asyncio.to_thread(get_zen_injection, user_prompt))
-        task_names.append("zen")
+    if ENABLED_INJECTIONS.get("code_intelligence_hub"):
+        all_tasks.append(
+            asyncio.to_thread(create_code_intelligence_injection, user_prompt),
+        )
+        task_names.append("code_intelligence_hub")
 
-    if ENABLED_INJECTIONS.get("content"):
-        all_tasks.append(asyncio.to_thread(get_content_injection, user_prompt))
-        task_names.append("content")
+    if ENABLED_INJECTIONS.get("system_monitor"):
+        all_tasks.append(
+            asyncio.to_thread(
+                get_system_monitoring_injection,
+                user_prompt,
+                project_dir,
+            ),
+        )
+        task_names.append("system_monitor")
 
-    if ENABLED_INJECTIONS.get("trigger"):
-        all_tasks.append(asyncio.to_thread(get_trigger_injection, user_prompt))
-        task_names.append("trigger")
-
-    if ENABLED_INJECTIONS.get("tree_sitter"):
-        all_tasks.append(asyncio.to_thread(create_tree_sitter_injection, user_prompt))
-        task_names.append("tree_sitter")
-
-    if ENABLED_INJECTIONS.get("tree_sitter_hints"):
-        all_tasks.append(asyncio.to_thread(get_tree_sitter_hints, user_prompt))
-        task_names.append("tree_sitter_hints")
+    if ENABLED_INJECTIONS.get("static_content"):
+        all_tasks.append(asyncio.to_thread(get_static_content_injection, user_prompt))
+        task_names.append("static_content")
+    
+    if ENABLED_INJECTIONS.get("context_revival"):
+        all_tasks.append(asyncio.to_thread(get_context_revival_injection, user_prompt, project_dir))
+        task_names.append("context_revival")
 
     if ENABLED_INJECTIONS.get("mcp"):
         all_tasks.append(asyncio.to_thread(get_mcp_injection, user_prompt))
         task_names.append("mcp")
 
-    if ENABLED_INJECTIONS.get("suffix"):
-        all_tasks.append(asyncio.to_thread(get_suffix, user_prompt))
-        task_names.append("suffix")
-
-    if ENABLED_INJECTIONS.get("agent"):
-        all_tasks.append(asyncio.to_thread(get_agent_injection, user_prompt))
-        task_names.append("agent")
-
     # Add native async injections
     if ENABLED_INJECTIONS.get("git"):
         all_tasks.append(get_git_injection(project_dir))
         task_names.append("git")
-
-    if ENABLED_INJECTIONS.get("runtime_monitoring"):
-        all_tasks.append(get_runtime_monitoring_injection())
-        task_names.append("runtime_monitoring")
-
-    if ENABLED_INJECTIONS.get("test_status"):
-        all_tasks.append(get_test_status_injection(user_prompt, project_dir))
-        task_names.append("test_status")
-
-    if ENABLED_INJECTIONS.get("lsp_diagnostics"):
-        all_tasks.append(get_lsp_diagnostics_injection(user_prompt, project_dir))
-        task_names.append("lsp_diagnostics")
-
-    if ENABLED_INJECTIONS.get("context_history"):
-        all_tasks.append(get_context_history_injection(user_prompt, project_dir))
-        task_names.append("context_history")
 
     if ENABLED_INJECTIONS.get("firecrawl"):
         all_tasks.append(get_firecrawl_injection(user_prompt, project_dir))
@@ -327,37 +299,29 @@ async def handle_async(data):
         results_dict = {}
 
     # Extract results with defaults for any missing/disabled injections
-    prefix = results_dict.get("prefix", "")
-    zen_instruction = results_dict.get("zen", "")
-    content_instruction = results_dict.get("content", "")
-    trigger_instruction = results_dict.get("trigger", "")
-    tree_sitter_injection = results_dict.get("tree_sitter", "")
-    tree_sitter_hints = results_dict.get("tree_sitter_hints", "")
+    unified_advisor = results_dict.get("unified_smart_advisor", "")
+    code_intelligence = results_dict.get("code_intelligence_hub", "")
+    system_monitor = results_dict.get("system_monitor", "")
+    static_content = results_dict.get("static_content", "")
+    context_revival = results_dict.get("context_revival", "")
     mcp_recommendations = results_dict.get("mcp", "")
-    suffix = results_dict.get("suffix", "")
-    agent_recommendations = results_dict.get("agent", "")
     git_injection = results_dict.get("git", "")
-    runtime_monitoring = results_dict.get("runtime_monitoring", "")
-    test_status = results_dict.get("test_status", "")
-    lsp_diagnostics = results_dict.get("lsp_diagnostics", "")
-    context_history = results_dict.get("context_history", "")
     firecrawl_context = results_dict.get("firecrawl", "")
 
     # Build additional context - combine all injections
-    # Git injection goes early for foundational context, firecrawl provides web context
+    # Git injection goes early for foundational context, context revival provides historical context
     raw_context = (
-        f"{git_injection}\n{runtime_monitoring}{test_status}{lsp_diagnostics}{context_history}"
-        f"{firecrawl_context}{zen_instruction}{content_instruction}{prefix}{trigger_instruction}"
-        f"{tree_sitter_injection}{tree_sitter_hints}{mcp_recommendations}{agent_recommendations}{suffix}"
+        f"{git_injection}\n{context_revival}{system_monitor}{firecrawl_context}{unified_advisor}"
+        f"{static_content}{code_intelligence}{mcp_recommendations}"
     )
 
     # Optimize context with AI if enabled
     ai_optimization_enabled = (
-        INJECTION_CIRCUIT_BREAKERS["ai_optimization"]
+        INJECTION_CIRCUIT_BREAKERS["enhanced_ai_optimizer"]
         and os.environ.get("CLAUDE_AI_CONTEXT_OPTIMIZATION", "false").lower() == "true"
     )
     if ai_optimization_enabled:
-        additional_context = optimize_injection_sync(user_prompt, raw_context)
+        additional_context = optimize_injection_enhanced_sync(user_prompt, raw_context)
     else:
         additional_context = raw_context
 

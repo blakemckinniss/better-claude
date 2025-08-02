@@ -1,4 +1,4 @@
-"""Module for injecting suffix instructions into user prompts."""
+"""Static Content Injector - consolidates prefix and suffix injections."""
 
 import json
 import re
@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 
 
 class EnhancedTaskClassifier:
-    """Enhanced classifier using weighted patterns inspired by smart_filter.py."""
+    """Enhanced classifier using weighted patterns for task analysis."""
 
     def __init__(self):
         # Task patterns with base weights and snippet associations
@@ -135,34 +135,6 @@ class EnhancedTaskClassifier:
 
         return task_scores, list(relevant_snippets), total_complexity
 
-    @classmethod
-    def classify(cls, prompt: str) -> List[str]:
-        """Backward compatible method that returns task categories."""
-        classifier = cls()
-        task_scores, _, _ = classifier.analyze(prompt)
-        # Return tasks with score > 0.3
-        return [task for task, score in task_scores.items() if score > 0.3] or [
-            "general",
-        ]
-
-
-def get_project_conventions() -> Dict[str, str]:
-    """Load project-specific conventions from CLAUDE.md or settings."""
-    conventions = {
-        "tools": "Use rg instead of grep, fd instead of find, bat instead of cat",
-        "parallel": "Execute independent operations in parallel using multiple tool calls",
-        "testing": "Run tests with appropriate framework before completing tasks",
-        "commits": "Never commit unless explicitly requested",
-    }
-
-    # Try to load additional conventions from CLAUDE.md
-    claude_md_path = Path("/home/devcontainers/better-claude/CLAUDE.md")
-    if claude_md_path.exists():
-        # Extract key conventions (simplified for now)
-        conventions["style"] = "Follow existing code conventions and patterns"
-
-    return conventions
-
 
 class ClaudeMdSnippets:
     """Extract and cache relevant snippets from CLAUDE.md."""
@@ -274,9 +246,6 @@ class ClaudeMdSnippets:
         except Exception as e:
             # Return empty dict on any error
             print(f"Error parsing CLAUDE.md: {e}")
-            import traceback
-
-            traceback.print_exc()
             return {}
 
     @classmethod
@@ -292,18 +261,18 @@ class ClaudeMdSnippets:
             else:
                 cls._snippets_cache = cls._parse_claude_md()
 
-        return cls._snippets_cache
+        return cls._snippets_cache or {}
 
     @classmethod
-    def get_relevant_snippets_enhanced(
+    def get_relevant_snippets(
         cls,
         snippet_suggestions: List[str],
         complexity_score: float,
     ) -> str:
-        """Get snippets based on enhanced classifier suggestions.
+        """Get snippets based on classifier suggestions.
 
         Args:
-            snippet_suggestions: List of snippet names from the enhanced classifier
+            snippet_suggestions: List of snippet names from the classifier
             complexity_score: Overall complexity score
 
         Returns:
@@ -384,200 +353,261 @@ class ClaudeMdSnippets:
         return "\n".join(relevant) if relevant else ""
 
 
-def get_performance_metrics() -> str:
-    """Generate performance tracking requirements."""
-    return (
-        "\n<performance-awareness>"
-        "Consider: Token usage efficiency | Parallel execution opportunities | "
-        "Resource consumption | Tool call optimization"
-        "</performance-awareness>"
-    )
+class StaticContentInjector:
+    """Unified static content injector combining prefix and suffix functionality."""
 
+    def __init__(self):
+        self.classifier = EnhancedTaskClassifier()
 
-def get_error_recovery_suffix() -> str:
-    """Generate error recovery pattern suggestions."""
-    return (
-        "\n<error-recovery>"
-        "If errors occur: Include rollback steps | Suggest debug commands | "
-        "Provide alternative approaches | Note cleanup requirements"
-        "</error-recovery>"
-    )
+    def get_prefix(self) -> str:
+        """Get the prefix to inject as additional context."""
+        return "Think optimal. Consult with ZEN whenever possible. "
 
+    def get_project_conventions(self) -> Dict[str, str]:
+        """Load project-specific conventions from CLAUDE.md or settings."""
+        conventions = {
+            "tools": "Use rg instead of grep, fd instead of find, bat instead of cat",
+            "parallel": "Execute independent operations in parallel using multiple tool calls",
+            "testing": "Run tests with appropriate framework before completing tasks",
+            "commits": "Never commit unless explicitly requested",
+        }
 
-def get_agent_recommendations(task_categories: List[str]) -> str:
-    """Suggest relevant agents based on task type."""
-    agent_map = {
-        "debugging": "debugger",
-        "performance": "performance-optimizer",
-        "security": "security-auditor",
-        "architecture": "api-architect",
-        "documentation": "code-documenter",
-        "testing": "test-strategist",
-    }
+        # Try to load additional conventions from CLAUDE.md
+        claude_md_path = Path("/home/devcontainers/better-claude/CLAUDE.md")
+        if claude_md_path.exists():
+            # Extract key conventions (simplified for now)
+            conventions["style"] = "Follow existing code conventions and patterns"
 
-    recommendations = []
-    for category in task_categories:
-        if category in agent_map:
-            recommendations.append(f"{agent_map[category]} agent for {category} tasks")
+        return conventions
 
-    if recommendations:
+    def get_performance_metrics(self) -> str:
+        """Generate performance tracking requirements."""
         return (
-            f"\n<agent-suggestions>"
-            f"Consider using: {', '.join(recommendations)}"
-            f"</agent-suggestions>"
-        )
-    return ""
-
-
-def get_progress_tracking_suffix() -> str:
-    """Generate progress tracking requirements."""
-    return (
-        "\n<progress-tracking>"
-        "TodoWrite updates: Mark completed tasks | Update progress | "
-        "Add discovered subtasks | Estimate remaining work"
-        "</progress-tracking>"
-    )
-
-
-def get_task_specific_suffix(task_categories: List[str]) -> str:
-    """Generate task-specific requirements based on categories."""
-    suffixes = []
-
-    if "coding" in task_categories:
-        suffixes.append(
-            "Code quality: Check linting | Consider tests | Follow patterns",
+            "\n<performance-awareness>"
+            "Consider: Token usage efficiency | Parallel execution opportunities | "
+            "Resource consumption | Tool call optimization"
+            "</performance-awareness>"
         )
 
-    if "debugging" in task_categories:
-        suffixes.append(
-            "Debug info: Include error context | Log locations | Stack traces",
+    def get_error_recovery_suffix(self) -> str:
+        """Generate error recovery pattern suggestions."""
+        return (
+            "\n<error-recovery>"
+            "If errors occur: Include rollback steps | Suggest debug commands | "
+            "Provide alternative approaches | Note cleanup requirements"
+            "</error-recovery>"
         )
 
-    if "architecture" in task_categories:
-        suffixes.append(
-            "Architecture: Consider scalability | Design patterns | Future growth",
+    def get_agent_recommendations(self, task_categories: List[str]) -> str:
+        """Suggest relevant agents based on task type."""
+        agent_map = {
+            "debugging": "debugger",
+            "performance": "performance-optimizer",
+            "security": "security-auditor",
+            "architecture": "api-architect",
+            "documentation": "code-documenter",
+            "testing": "test-strategist",
+        }
+
+        recommendations = []
+        for category in task_categories:
+            if category in agent_map:
+                recommendations.append(
+                    f"{agent_map[category]} agent for {category} tasks",
+                )
+
+        if recommendations:
+            return (
+                f"\n<agent-suggestions>"
+                f"Consider using: {', '.join(recommendations)}"
+                f"</agent-suggestions>"
+            )
+        return ""
+
+    def get_progress_tracking_suffix(self) -> str:
+        """Generate progress tracking requirements."""
+        return (
+            "\n<progress-tracking>"
+            "TodoWrite updates: Mark completed tasks | Update progress | "
+            "Add discovered subtasks | Estimate remaining work"
+            "</progress-tracking>"
         )
 
-    if "documentation" in task_categories:
-        suffixes.append(
-            "Docs: Include examples | Clear explanations | Update references",
+    def get_task_specific_suffix(self, task_categories: List[str]) -> str:
+        """Generate task-specific requirements based on categories."""
+        suffixes = []
+
+        if "coding" in task_categories:
+            suffixes.append(
+                "Code quality: Check linting | Consider tests | Follow patterns",
+            )
+
+        if "debugging" in task_categories:
+            suffixes.append(
+                "Debug info: Include error context | Log locations | Stack traces",
+            )
+
+        if "architecture" in task_categories:
+            suffixes.append(
+                "Architecture: Consider scalability | Design patterns | Future growth",
+            )
+
+        if "documentation" in task_categories:
+            suffixes.append(
+                "Docs: Include examples | Clear explanations | Update references",
+            )
+
+        if "testing" in task_categories:
+            suffixes.append("Testing: Edge cases | Coverage goals | Integration points")
+
+        if "performance" in task_categories:
+            suffixes.append(
+                "Performance: Measure baselines | Identify bottlenecks | Profile results",
+            )
+
+        if "security" in task_categories:
+            suffixes.append(
+                "Security: Validate inputs | Check permissions | Audit logs",
+            )
+
+        if suffixes:
+            return f"\n<task-specific>\n{' | '.join(suffixes)}\n</task-specific>"
+        return ""
+
+    @lru_cache(maxsize=256)
+    def analyze_prompt(
+        self,
+        user_prompt: str,
+    ) -> Tuple[bool, float, List[str], List[str]]:
+        """Analyze prompt using the enhanced classifier.
+
+        Returns:
+            Tuple of (should_apply_enhanced, complexity_score, task_categories, relevant_snippets)
+        """
+        task_scores, relevant_snippets, complexity_score = self.classifier.analyze(
+            user_prompt,
         )
 
-    if "testing" in task_categories:
-        suffixes.append("Testing: Edge cases | Coverage goals | Integration points")
+        # Get task categories
+        task_categories = [task for task, score in task_scores.items() if score > 0.3]
 
-    if "performance" in task_categories:
-        suffixes.append(
-            "Performance: Measure baselines | Identify bottlenecks | Profile results",
+        # Apply enhanced suffix for complexity > 0.2
+        should_apply = complexity_score > 0.2
+
+        return should_apply, complexity_score, task_categories, relevant_snippets
+
+    def get_suffix(self, user_prompt: Optional[str] = None) -> str:
+        """Get the suffix to inject as additional context.
+
+        The core "3 Next Steps" requirement is ALWAYS included.
+        Additional context-aware suffixes are added based on the prompt.
+
+        Args:
+            user_prompt: Optional user prompt for context-aware suffix generation
+
+        Returns:
+            str: The suffix text to add as context
+        """
+        # Core requirement - ALWAYS included
+        core_suffix = (
+            "\n<response-requirements>"
+            "ALWAYS end your response with a 'Next Steps' section containing exactly 3 actionable suggestions: "
+            "1. The most logical immediate next action based on what was just completed "
+            "2. A proactive improvement or optimization that could enhance the current work "
+            "3. A forward-thinking suggestion that anticipates future needs or potential issues"
+            "IMPORTANT: Create agents whenever necessary to handle complex tasks, perform all tasks in parallel if it makes sense, and consult with Zen Gemini early and often."
+            "</response-requirements>"
         )
 
-    if "security" in task_categories:
-        suffixes.append("Security: Validate inputs | Check permissions | Audit logs")
+        # If no prompt provided, return core suffix only
+        if not user_prompt:
+            return core_suffix
 
-    if suffixes:
-        return f"\n<task-specific>\n{' | '.join(suffixes)}\n</task-specific>"
-    return ""
+        # Analyze prompt using enhanced classifier
+        apply_enhanced, complexity_score, task_categories, snippet_suggestions = (
+            self.analyze_prompt(user_prompt)
+        )
+
+        # Start with core suffix
+        full_suffix = core_suffix
+
+        if apply_enhanced:
+            # Add task-specific requirements
+            task_suffix = self.get_task_specific_suffix(task_categories)
+            if task_suffix:
+                full_suffix += task_suffix
+
+            # Add performance metrics for moderately complex tasks
+            if complexity_score > 0.35:
+                full_suffix += self.get_performance_metrics()
+
+            # Add error recovery for debugging/complex tasks
+            if "debugging" in task_categories or complexity_score > 0.5:
+                full_suffix += self.get_error_recovery_suffix()
+
+            # Add agent recommendations
+            agent_suffix = self.get_agent_recommendations(task_categories)
+            if agent_suffix:
+                full_suffix += agent_suffix
+
+            # Add progress tracking for multi-step tasks
+            word_count = len(user_prompt.split())
+            if complexity_score > 0.4 or word_count > 25:
+                full_suffix += self.get_progress_tracking_suffix()
+
+            # Add project conventions reminder for coding tasks
+            if "coding" in task_categories:
+                conventions = self.get_project_conventions()
+                if conventions:
+                    conv_list = " | ".join(
+                        [f"{k}: {v}" for k, v in conventions.items()],
+                    )
+                    full_suffix += (
+                        f"\n<project-conventions>\n{conv_list}\n</project-conventions>"
+                    )
+
+            # Add relevant CLAUDE.md snippets using enhanced suggestions
+            claude_md_snippets = ClaudeMdSnippets.get_relevant_snippets(
+                snippet_suggestions,
+                complexity_score,
+            )
+            if claude_md_snippets:
+                full_suffix += f"\n{claude_md_snippets}"
+
+        # Add complexity metadata
+        if complexity_score > 0:
+            full_suffix += f"\n<!-- Complexity: {complexity_score:.2f} -->"
+
+        return full_suffix
+
+    def get_combined_static_content(self, user_prompt: Optional[str] = None) -> str:
+        """Get combined prefix and suffix content for injection.
+
+        Args:
+            user_prompt: Optional user prompt for context-aware content generation
+
+        Returns:
+            str: Combined prefix and suffix content
+        """
+        prefix = self.get_prefix()
+        suffix = self.get_suffix(user_prompt)
+        return f"{prefix}{suffix}"
 
 
-@lru_cache(maxsize=256)
-def analyze_prompt_enhanced(
-    user_prompt: str,
-) -> Tuple[bool, float, List[str], List[str]]:
-    """Enhanced prompt analysis using the new classifier.
-
-    Returns:
-        Tuple of (should_apply_enhanced, complexity_score, task_categories, relevant_snippets)
-    """
-    classifier = EnhancedTaskClassifier()
-    task_scores, relevant_snippets, complexity_score = classifier.analyze(user_prompt)
-
-    # Get task categories for backward compatibility
-    task_categories = [task for task, score in task_scores.items() if score > 0.3]
-
-    # Apply enhanced suffix for complexity > 0.2
-    should_apply = complexity_score > 0.2
-
-    return should_apply, complexity_score, task_categories, relevant_snippets
+# Factory functions for backward compatibility
+def get_prefix() -> str:
+    """Get the prefix to inject as additional context."""
+    injector = StaticContentInjector()
+    return injector.get_prefix()
 
 
 def get_suffix(user_prompt: Optional[str] = None) -> str:
-    """Get the suffix to inject as additional context.
+    """Get the suffix to inject as additional context."""
+    injector = StaticContentInjector()
+    return injector.get_suffix(user_prompt)
 
-    The core "3 Next Steps" requirement is ALWAYS included.
-    Additional context-aware suffixes are added based on the prompt.
 
-    Args:
-        user_prompt: Optional user prompt for context-aware suffix generation
-
-    Returns:
-        str: The suffix text to add as context
-    """
-    # Core requirement - ALWAYS included
-    core_suffix = (
-        "\n<response-requirements>"
-        "ALWAYS end your response with a 'Next Steps' section containing exactly 3 actionable suggestions: "
-        "1. The most logical immediate next action based on what was just completed "
-        "2. A proactive improvement or optimization that could enhance the current work "
-        "3. A forward-thinking suggestion that anticipates future needs or potential issues"
-        "IMPORTANT: Create agents whenever necessary to handle complex tasks, perform all tasks in parallel if it makes sense, and consult with Zen Gemini early and often."
-        "</response-requirements>"
-    )
-
-    # If no prompt provided, return core suffix only
-    if not user_prompt:
-        return core_suffix
-
-    # Analyze prompt using enhanced classifier
-    apply_enhanced, complexity_score, task_categories, snippet_suggestions = (
-        analyze_prompt_enhanced(user_prompt)
-    )
-
-    # Start with core suffix
-    full_suffix = core_suffix
-
-    if apply_enhanced:
-        # Add task-specific requirements
-        task_suffix = get_task_specific_suffix(task_categories)
-        if task_suffix:
-            full_suffix += task_suffix
-
-        # Add performance metrics for moderately complex tasks
-        if complexity_score > 0.35:
-            full_suffix += get_performance_metrics()
-
-        # Add error recovery for debugging/complex tasks
-        if "debugging" in task_categories or complexity_score > 0.5:
-            full_suffix += get_error_recovery_suffix()
-
-        # Add agent recommendations
-        agent_suffix = get_agent_recommendations(task_categories)
-        if agent_suffix:
-            full_suffix += agent_suffix
-
-        # Add progress tracking for multi-step tasks
-        word_count = len(user_prompt.split())
-        if complexity_score > 0.4 or word_count > 25:
-            full_suffix += get_progress_tracking_suffix()
-
-        # Add project conventions reminder for coding tasks
-        if "coding" in task_categories:
-            conventions = get_project_conventions()
-            if conventions:
-                conv_list = " | ".join([f"{k}: {v}" for k, v in conventions.items()])
-                full_suffix += (
-                    f"\n<project-conventions>\n{conv_list}\n</project-conventions>"
-                )
-
-        # Add relevant CLAUDE.md snippets using enhanced suggestions
-        claude_md_snippets = ClaudeMdSnippets.get_relevant_snippets_enhanced(
-            snippet_suggestions,
-            complexity_score,
-        )
-        if claude_md_snippets:
-            full_suffix += f"\n{claude_md_snippets}"
-
-    # Add complexity metadata
-    if complexity_score > 0:
-        full_suffix += f"\n<!-- Complexity: {complexity_score:.2f} -->"
-
-    return full_suffix
+def get_static_content_injection(user_prompt: Optional[str] = None) -> str:
+    """Get combined static content injection for the prompt."""
+    injector = StaticContentInjector()
+    return injector.get_combined_static_content(user_prompt)

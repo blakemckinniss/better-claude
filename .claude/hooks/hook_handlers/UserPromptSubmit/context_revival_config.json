@@ -1,0 +1,47 @@
+{
+  "database": {
+    "filename": "context_revival.db",
+    "timeout": 30.0,
+    "wal_mode": true
+  },
+  "storage": {
+    "max_context_age_days": 30,
+    "compression_enabled": true,
+    "max_context_length": 10000
+  },
+  "retrieval": {
+    "max_results": 10,
+    "relevance_threshold": 0.3,
+    "scoring_weights": {
+      "recency": 0.3,
+      "relevance": 0.4,
+      "outcome_success": 0.2,
+      "file_overlap": 0.1
+    }
+  },
+  "injection": {
+    "max_context_tokens": 2000,
+    "include_file_context": true
+  },
+  "triggers": {
+    "keywords": ["similar", "before", "previous", "like", "remember"],
+    "error_indicators": ["error", "bug", "issue", "problem", "failed", "broken", "crash"],
+    "success_indicators": ["worked", "success", "fixed", "resolved", "solved"],
+    "file_extensions": [".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".cpp", ".c", ".h"]
+  },
+  "circuit_breaker": {
+    "failure_threshold": 5,
+    "recovery_timeout": 300,
+    "half_open_max_calls": 3
+  },
+  "performance": {
+    "cache_size": 100,
+    "cache_ttl": 3600,
+    "background_cleanup_interval": 86400,
+    "max_query_time_ms": 500
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PostToolUse hook orchestrator - coordinates formatting, validation, and diagnostics."""
+"""PostToolUse hook orchestrator - coordinates formatting, validation, diagnostics, and context capture."""
 
 import sys
 from pathlib import Path
@@ -15,6 +15,7 @@ from PostToolUse.diagnostics import (
 )
 from PostToolUse.formatters import format_file
 from PostToolUse.validators import print_validation_report, validate_file
+from PostToolUse.context_capture import handle_context_capture
 
 
 def handle_file_modification(tool_name: str, tool_input: Dict[str, Any]) -> int:
@@ -126,12 +127,21 @@ def handle_hook(data: Dict[str, Any]) -> int:
     """Main entry point for PostToolUse hook handling."""
     tool_name = data.get("tool_name", "")
     tool_input = data.get("tool_input", {})
-
-    # Handle Claude's built-in file modification tools
-    if tool_name in ["Edit", "MultiEdit", "Write"]:
-        return handle_file_modification(tool_name, tool_input)
     
-    # Handle MCP filesystem operations
+    # Initialize result code
+    exit_code = 0
+    
+    # 1. First, always try to capture context for the tool usage
+    try:
+        handle_context_capture(data)
+    except Exception as e:
+        print(f"Warning: Context capture failed: {e}", file=sys.stderr)
+    
+    # 2. Handle Claude's built-in file modification tools
+    if tool_name in ["Edit", "MultiEdit", "Write"]:
+        exit_code = handle_file_modification(tool_name, tool_input)
+    
+    # 3. Handle MCP filesystem operations
     elif tool_name.startswith("mcp__filesystem__"):
         # MCP filesystem tools that modify files
         if tool_name in [
@@ -148,9 +158,9 @@ def handle_hook(data: Dict[str, Any]) -> int:
             
             if file_path:
                 # Reuse the same file modification handler
-                return handle_file_modification(tool_name, {"file_path": file_path})
+                exit_code = handle_file_modification(tool_name, {"file_path": file_path})
 
-    return 0
+    return exit_code
 
 
 # For backwards compatibility with existing PostToolUse.py

@@ -34,7 +34,7 @@
 - Follow project's established architecture and component patterns
 - Use existing utility functions and avoid duplicating functionality
 
-Below is **content‑dense instruct markdown** you can drop into your `CLAUDE.md` / `CLAUDE.me`. It’s written as *imperatives to Claude Code* and designed to be skim‑friendly.
+Below is **content‑dense instruct markdown** you can drop into your `CLAUDE.md` / `CLAUDE.me`. It's written as *imperatives to Claude Code* and designed to be skim‑friendly.
 
 ---
 
@@ -93,13 +93,92 @@ Below is **content‑dense instruct markdown** you can drop into your `CLAUDE.md
 **Delegation rules**
 
 * Auto‑route based on *task text + agent `description` + available tools + current context*.
-* If routing is unreliable, tune `name`, `description`, and system prompt. Use phrases like **“use proactively”** or **“MUST BE USED”** in descriptions for critical cases (tool SEO).
+* If routing is unreliable, tune `name`, `description`, and system prompt. Use phrases like **"use proactively"** or **"MUST BE USED"** in descriptions for critical cases (tool SEO).
 
 **Isolation benefits**
 
 * Separate context windows (prevents cross‑task contamination).
 * Specialized system prompts (no CLAUDE.md inheritance).
 * Role‑specific tools for least privilege and safer execution.
+
+---
+
+## MANDATORY: Subagent‑First Architecture
+
+**CORE MANDATE:** All work MUST be delegated to specialized subagents using the Task tool. **NEVER** directly implement features.
+
+### Delegation Over Direct Execution
+
+**Pattern:** Analyze → Delegate → Synthesize
+
+```python
+# REQUIRED WORKFLOW
+analysis = Task("Request Analyzer", "Break request into work units")
+# ... Create specialized subagents based on analysis ...
+synthesis = Task("Result Synthesizer", "Combine subagent outputs")
+```
+
+### Subagent Creation Patterns
+
+**Feature Development Pattern**
+```
+Task("Feature Analyzer", "Analyze requirements and create plan")
+Task("Core Implementer", "Implement main functionality") 
+Task("Edge Handler", "Handle errors and edge cases")
+Task("Test Creator", "Create comprehensive tests")
+Task("Documenter", "Document implementation")
+```
+
+**Refactoring Pattern**
+```
+Task("Refactor Analyzer", "Identify refactoring opportunities")
+Task("Component Refactorer", "Refactor components for consistency")
+Task("Utility Refactorer", "Refactor utility functions")
+Task("Test Updater", "Update tests for refactored code")
+```
+
+**Bug Fix Pattern**
+```
+Task("Bug Investigator", "Investigate root cause")
+Task("Fix Implementer", "Implement bug fix")
+Task("Regression Tester", "Create regression tests")
+Task("Verifier", "Verify fix across scenarios")
+```
+
+**Analysis Pattern**
+```
+Task("Code Analyzer", "Static analysis of codebase")
+Task("Performance Analyzer", "Identify bottlenecks")
+Task("Security Analyzer", "Check vulnerabilities")
+Task("Recommendation Compiler", "Compile actionable findings")
+```
+
+### Subagent Metrics & Rules
+
+* **Minimum subagents per task:** 3
+* **Target for complex tasks:** 5-10
+* **Maximum depth:** 2 levels (subagents can spawn sub-subagents)
+* **Granular tasks:** Break work into smallest logical units
+* **Clear objectives:** ONE goal per subagent
+* **Parallel design:** Enable concurrent execution
+* **Independent execution:** No cross-dependencies
+
+### Prohibited Practices
+
+❌ **Direct file edits** without subagent delegation  
+❌ **Implementing features** in main agent  
+❌ **Combining responsibilities** in one subagent  
+❌ **Skipping analysis** phase  
+❌ **Using <3 subagents** for non-trivial tasks
+
+### Emergency Override Protocol
+
+**Only when subagent creation fails repeatedly:**
+1. Document failure reason
+2. Create follow-up refactoring task
+3. Alert about exception
+
+**Remember:** More subagents = Better organization = Higher quality output
 
 ---
 
@@ -113,12 +192,12 @@ Below is **content‑dense instruct markdown** you can drop into your `CLAUDE.md
 
 **Chainability**
 
-* Heavy agents (≥25k tokens) throttle multi‑agent pipelines. Balance “big” specialists with lightweight helpers (think **big.LITTLE**).
+* Heavy agents (≥25k tokens) throttle multi‑agent pipelines. Balance "big" specialists with lightweight helpers (think **big.LITTLE**).
 
-**Do/Don’t**
+**Do/Don't**
 
 * **Do:** Measure, prune, cache patterns, reuse templates.
-* **Don’t:** Attach broad toolsets “just in case”; avoid redundant long context.
+* **Don't:** Attach broad toolsets "just in case"; avoid redundant long context.
 
 ---
 
@@ -155,8 +234,8 @@ sed/awk → jq    # JSON processing
 | --------------- | --------- | ---------------------- |
 | Trivial         | 0         | Simple calculations    |
 | Simple          | 0-1       | Single file edits      |
-| Moderate        | 1-2       | Feature implementation |
-| Complex         | 2-3       | Architecture redesign  |
+| Moderate        | 3-5       | Feature implementation |
+| Complex         | 5-10      | Architecture redesign  |
 
 **ALWAYS state**: "X subagents needed" (even if 0)
 
@@ -225,6 +304,7 @@ Task(description="Debug error",
 - Manual debugging instead of delegation
 - Using grep/find/cat when rg/fd/bat exist
 - Explaining instead of executing
+- Direct implementation without subagents
 
 ## ✅ PATTERNS
 
@@ -233,6 +313,7 @@ Task(description="Debug error",
 - Parallelize independent tasks
 - Use specialized agents
 - Think in execution graphs, not sequences
+- Minimum 3 subagents for complex work
 
 ## 🔒 UNBREAKABLE LAWS
 
