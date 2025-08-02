@@ -52,27 +52,6 @@ DEFAULT_MCP_MAPPINGS: Dict[str, Dict] = {
             r"no analysis needed", r"skip review"
         ]
     },
-    "mcp__serena__": {
-        "name": "Serena Python Navigator",
-        "priority": 8,
-        "keywords": {
-            # Highest priority (explicit tool reference)
-            10: ["use serena", "serena navigate"],
-            # High priority (specific navigation)
-            9: ["find symbol", "go to definition", "find references", "find usages"],
-            # Medium-high priority (refactoring)
-            8: ["rename symbol", "refactor python", "extract method", "inline function"],
-            # Medium priority (Python specific)
-            6: ["python code", "python function", "python class", "python module"],
-            # Lower priority (general Python)
-            4: ["python", "py file", "import statement", "decorator"],
-            # Testing specific
-            7: ["pytest", "unittest", "python test", "test fixture"]
-        },
-        "negative_patterns": [
-            r"python snake", r"monty python", r"python language history"
-        ]
-    },
     "mcp__filesystem__": {
         "name": "File System Operations",
         "priority": 7,
@@ -193,7 +172,7 @@ DOMAIN_KEYWORDS = {
     },
     "testing": {
         "keywords": ["test suite", "testing strategy", "qa automation", "test coverage"],
-        "suggested_tools": ["mcp__zen__", "mcp__playwright__", "mcp__serena__"]
+        "suggested_tools": ["mcp__zen__", "mcp__playwright__"]
     },
     "devops": {
         "keywords": ["ci/cd", "deployment", "infrastructure", "docker", "kubernetes"],
@@ -201,7 +180,7 @@ DOMAIN_KEYWORDS = {
     },
     "debugging": {
         "keywords": ["debug error", "fix bug", "troubleshoot issue", "investigate problem"],
-        "suggested_tools": ["mcp__zen__", "mcp__serena__", "mcp__tavily-remote__"]
+        "suggested_tools": ["mcp__zen__", "mcp__filesystem__", "mcp__tavily-remote__"]
     },
     "documentation": {
         "keywords": ["document code", "write docs", "api documentation", "readme"],
@@ -226,7 +205,7 @@ TOOL_COMBINATIONS = {
             r"python.*stack trace",
             r"fix.*python.*bug"
         ],
-        "tools": ["mcp__serena__", "mcp__zen__"],
+        "tools": ["mcp__filesystem__", "mcp__zen__"],
         "boost": 15
     },
     "web_testing": {
@@ -253,7 +232,7 @@ TOOL_COMBINATIONS = {
             r"upgrade.*framework.*version",
             r"refactor.*legacy.*code"
         ],
-        "tools": ["mcp__zen__", "mcp__filesystem__", "mcp__serena__"],
+        "tools": ["mcp__zen__", "mcp__filesystem__"],
         "boost": 20
     }
 }

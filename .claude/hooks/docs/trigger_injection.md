@@ -6,7 +6,7 @@ The trigger injection system automatically detects keywords in user prompts and 
 
 ### 1. **Keyword-Based Tool Detection**
 - Analyzes user prompts for keywords associated with specific MCP tools
-- Supports all available MCP tools including GitHub, ZEN, Serena, filesystem, web search, etc.
+- Supports all available MCP tools including GitHub, ZEN, filesystem, web search, etc.
 
 ### 2. **Priority-Based Scoring System**
 - Keywords have priority levels (0-10) indicating their importance
@@ -106,7 +106,6 @@ Use mcp__zen__ (ZEN Strategic AI). This tool may be helpful.
 
 - **GitHub MCP**: Pull requests, issues, commits, actions, workflows
 - **ZEN Strategic AI**: Complex analysis, debugging, architecture, planning
-- **Serena Python**: Python navigation, refactoring, symbol finding
 - **File System**: File/folder operations, directory management
 - **Web Search**: Documentation lookup, online research, content extraction
 - **Browser Automation**: E2E testing, UI automation, screenshots

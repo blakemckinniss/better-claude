@@ -161,7 +161,6 @@ sed/awk → jq    # JSON processing
 **ALWAYS state**: "X subagents needed" (even if 0)
 
 ### 4. TOOL HIERARCHY (This Project)
-1. **Serena** → Code navigation/editing (primary for Python)
 2. **ZEN** → Strategic analysis & specialist delegation
 3. **Hooks** → Automated quality enforcement
 
@@ -208,7 +207,6 @@ Task(description="Debug error",
 
 ### Project-Specific Patterns
 - **Python quality**: `ruff check . && mypy .` (parallel)
-- **Hook work**: Serena symbols → Code-reviewer validation
 - **NextJS**: frontend-developer + filesystem MCP
 - **Complex**: debugger + performance (2 agents)
 

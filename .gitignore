@@ -17,9 +17,6 @@ claude_md_cache.json
 # Agents directory (runtime-generated)
 .claude/agents/
 
-# Serena directory (separate tool)
-.serena/
-
 # Python cache
 __pycache__/
 *.pyc

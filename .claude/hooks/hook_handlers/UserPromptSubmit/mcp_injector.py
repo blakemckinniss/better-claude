@@ -29,20 +29,6 @@ class MCPInjector:
                 ],
                 "example": "mcp__zen__chat(prompt='How should I approach implementing this feature?', model='anthropic/claude-opus-4', use_websearch=True)"
             },
-            "serena": {
-                "name": "Serena (mcp__serena__)",
-                "description": "Python code navigation & manipulation",
-                "tools": ["find_symbol", "replace_symbol_body", "get_references", "rename_symbol"],
-                "use_cases": [
-                    "python development",
-                    "code refactoring",
-                    "symbol navigation",
-                    "code editing",
-                    "finding references",
-                    "renaming across files"
-                ],
-                "example": "mcp__serena__find_symbol(name_path='ClassName/method_name', include_body=True)"
-            },
             "filesystem": {
                 "name": "Filesystem (mcp__filesystem__)",
                 "description": "General file & directory operations",
@@ -161,27 +147,27 @@ class MCPInjector:
         self.intent_patterns = {
             "coding": {
                 "patterns": [r"implement", r"code", r"function", r"class", r"method", r"develop", r"program", r"write.*code"],
-                "primary_tools": ["serena", "filesystem", "zen"],
+                "primary_tools": ["filesystem", "zen"],
                 "secondary_tools": ["tree_sitter", "memory"]
             },
             "debugging": {
                 "patterns": [r"debug", r"error", r"bug", r"fix", r"issue", r"problem", r"broken", r"fail", r"exception"],
-                "primary_tools": ["zen", "serena", "tree_sitter"],
+                "primary_tools": ["zen", "tree_sitter"],
                 "secondary_tools": ["filesystem", "memory"]
             },
             "analysis": {
                 "patterns": [r"analyze", r"understand", r"explain", r"how does", r"what does", r"explore", r"investigate"],
-                "primary_tools": ["zen", "tree_sitter", "serena"],
+                "primary_tools": ["zen", "tree_sitter"],
                 "secondary_tools": ["filesystem", "memory"]
             },
             "refactoring": {
                 "patterns": [r"refactor", r"improve", r"clean", r"optimize", r"restructure", r"simplify", r"organize"],
-                "primary_tools": ["serena", "zen", "tree_sitter"],
+                "primary_tools": ["zen", "tree_sitter"],
                 "secondary_tools": ["filesystem"]
             },
             "file_operations": {
                 "patterns": [r"read", r"write", r"create.*file", r"edit", r"modify", r"delete", r"list.*files", r"search.*files"],
-                "primary_tools": ["filesystem", "serena"],
+                "primary_tools": ["filesystem"],
                 "secondary_tools": ["tree_sitter"]
             },
             "web_search": {
@@ -192,7 +178,7 @@ class MCPInjector:
             "github_ops": {
                 "patterns": [r"pull request", r"PR", r"issue", r"github", r"repository", r"commit", r"merge", r"branch"],
                 "primary_tools": ["github", "filesystem", "zen"],
-                "secondary_tools": ["serena"]
+                "secondary_tools": ["filesystem"]
             },
             "ui_development": {
                 "patterns": [r"UI", r"component", r"frontend", r"React", r"interface", r"design", r"layout", r"styling"],
@@ -202,7 +188,7 @@ class MCPInjector:
             "testing": {
                 "patterns": [r"test", r"automate", r"browser", r"UI test", r"e2e", r"integration test", r"screenshot"],
                 "primary_tools": ["playwright", "zen", "filesystem"],
-                "secondary_tools": ["serena", "tree_sitter"]
+                "secondary_tools": ["tree_sitter"]
             },
             "complex_task": {
                 "patterns": [r"complex", r"difficult", r"strategy", r"plan", r"architecture", r"decision", r"approach"],
@@ -277,7 +263,7 @@ class MCPInjector:
                 score += intent_score * 1.5
         
         # Language-specific bonuses
-        if tool_name == "serena" and "python" in languages:
+        if tool_name == "filesystem" and "python" in languages:
             score += 5.0  # Strong Python specialization
         elif tool_name == "tree_sitter" and languages:
             score += 3.0  # Works with multiple languages
@@ -343,7 +329,6 @@ class MCPInjector:
         # Tool-specific reasons
         tool_reasons = {
             "zen": "Expert AI analysis and strategic guidance",
-            "serena": "Precise Python code navigation and editing",
             "filesystem": "Efficient file and directory operations",
             "tavily": "Real-time web search and documentation",
             "tree_sitter": "Advanced AST analysis and pattern detection",
@@ -389,8 +374,7 @@ class MCPInjector:
             top_intent = intents[0][0]
             
             tips = {
-                "debugging": "• Use ZEN's debug tool for systematic investigation\n• Combine with Serena for precise code navigation",
-                "coding": "• Start with Serena for Python or Filesystem for other languages\n• Use ZEN for architectural decisions",
+                "debugging": "• Use ZEN's debug tool for systematic investigation\n",
                 "analysis": "• Begin with Tree-sitter for structural analysis\n• Follow up with ZEN for strategic insights",
                 "web_search": "• Use Tavily for current information\n• Context7 for specific library documentation",
                 "complex_task": "• Always start with ZEN for strategic planning\n• Break down into subtasks using specialized tools"

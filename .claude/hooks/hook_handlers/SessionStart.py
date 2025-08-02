@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 from typing import List
 
 # Add current directory to path
@@ -65,13 +64,6 @@ def format_core_tools_intro() -> str:
    - Debug: Systematic debugging & root cause analysis
    - Analyze: Code analysis & architecture assessment
    - Consensus: Multi-model decision making
-   
-🔍 **Serena** (mcp__serena__)
-   Python code navigation & manipulation
-   - find_symbol: Navigate to functions/classes
-   - replace_symbol_body: Edit code precisely
-   - get_references: Find all usages
-   - rename_symbol: Refactor across files
    
 📁 **Filesystem** (mcp__filesystem__)
    General file & directory operations

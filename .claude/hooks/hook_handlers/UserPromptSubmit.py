@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import asyncio
+import functools
 import json
 import os
 import sys
+import time
+from typing import Dict, Optional, Tuple
 
 # Add the current directory to the path so we can import the UserPromptSubmit module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -15,18 +18,74 @@ INJECTION_CIRCUIT_BREAKERS = {
     "zen": True,
     "content": True,
     "trigger": True,
-    "tree_sitter": False,
-    "tree_sitter_hints": False,
+    "tree_sitter": True,
+    "tree_sitter_hints": True,
     "mcp": True,
     "agent": True,
-    "git": False,
+    "git": True,
     "runtime_monitoring": False,
     "test_status": False,
     "lsp_diagnostics": False,
-    "context_history": False,
+    "context_history": True,
     "firecrawl": False,
     "ai_optimization": True,  # Controls AI context optimization
 }
+
+# Pre-compute enabled injections for performance
+ENABLED_INJECTIONS = {k: v for k, v in INJECTION_CIRCUIT_BREAKERS.items() if v}
+
+# File cache for transcript reads
+_transcript_cache: Dict[str, Tuple[bytes, float]] = {}
+CACHE_TTL = 5.0  # 5 seconds TTL for transcript cache
+
+
+def perf_monitor(func):
+    """Performance monitoring decorator for critical functions."""
+
+    @functools.wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        try:
+            result = await func(*args, **kwargs)
+            duration = time.perf_counter() - start_time
+            if duration > 0.5:  # Log slow operations
+                print(
+                    f"[PERF] Slow operation {func.__name__}: {duration:.3f}s",
+                    file=sys.stderr,
+                )
+            return result
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            print(
+                f"[PERF] Failed {func.__name__} after {duration:.3f}s: {e}",
+                file=sys.stderr,
+            )
+            raise
+
+    @functools.wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        try:
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start_time
+            if duration > 0.1:  # Lower threshold for sync operations
+                print(
+                    f"[PERF] Slow operation {func.__name__}: {duration:.3f}s",
+                    file=sys.stderr,
+                )
+            return result
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            print(
+                f"[PERF] Failed {func.__name__} after {duration:.3f}s: {e}",
+                file=sys.stderr,
+            )
+            raise
+
+    # Return appropriate wrapper based on function type
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    return sync_wrapper
 
 
 # Load environment variables from .env file
@@ -74,14 +133,53 @@ from UserPromptSubmit.trigger_injection import get_trigger_injection  # noqa: E4
 from UserPromptSubmit.zen_injection import get_zen_injection  # noqa: E402
 
 
-def should_inject_context(data):
+def read_transcript_cached(transcript_path: str) -> Optional[bytes]:
+    """Read transcript with caching to reduce I/O operations."""
+    if not transcript_path or not os.path.exists(transcript_path):
+        return None
+
+    # Check cache
+    now = time.time()
+    if transcript_path in _transcript_cache:
+        content, timestamp = _transcript_cache[transcript_path]
+        if now - timestamp < CACHE_TTL:
+            return content
+
+    # Read file and update cache
+    try:
+        with open(transcript_path, "rb") as f:
+            content = f.read()
+        _transcript_cache[transcript_path] = (content, now)
+
+        # Clean old entries
+        for path, (_, ts) in list(_transcript_cache.items()):
+            if now - ts > CACHE_TTL:
+                del _transcript_cache[path]
+
+        return content
+    except OSError:
+        return None
+
+
+def has_user_messages_optimized(transcript_path: str) -> bool:
+    """Check if transcript has user messages with optimized I/O."""
+    content = read_transcript_cached(transcript_path)
+    if not content:
+        return False
+
+    # Quick binary search for user messages
+    return b'"type":"user"' in content and b'"message"' in content
+
+
+def should_inject_context(data, session_state=None):
     """Determine if we should inject context based on session state and transcript."""
     try:
         # Get transcript path from hook data
         transcript_path = data.get("transcript_path")
 
-        # Initialize session state manager
-        session_state = SessionState()
+        # Use provided session state or create new one
+        if session_state is None:
+            session_state = SessionState()
 
         # First check session state rules (forced injection, message count, etc.)
         if session_state.should_inject(transcript_path):
@@ -97,24 +195,8 @@ def should_inject_context(data):
         if not transcript_path or not os.path.exists(transcript_path):
             return True
 
-        # Check if this transcript has any user messages yet
-        user_message_count = 0
-        try:
-            with open(transcript_path) as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            entry = json.loads(line)
-                            if entry.get("type") == "user" and "message" in entry:
-                                user_message_count += 1
-                        except json.JSONDecodeError:
-                            continue
-        except OSError as e:
-            print(f"Error reading transcript {transcript_path}: {e}", file=sys.stderr)
-            return True
-
-        # If no user messages in transcript, force injection
-        if user_message_count == 0:
+        # Optimized check for user messages
+        if not has_user_messages_optimized(transcript_path):
             return True
 
         return False
@@ -130,12 +212,12 @@ async def handle_async(data):
     # Extract user prompt from data if available
     user_prompt = data.get("prompt", "") if isinstance(data, dict) else ""
 
-    # Check if we should inject context
-    should_inject = should_inject_context(data)
-
-    # Initialize session state for tracking
+    # Initialize session state once
     session_state = SessionState()
     transcript_path = data.get("transcript_path")
+
+    # Check if we should inject context (pass session state to avoid duplicate)
+    should_inject = should_inject_context(data, session_state)
 
     if not should_inject:
         # Increment message count for next check
@@ -154,7 +236,7 @@ async def handle_async(data):
     # Mark that we're injecting context
     # Ensure transcript_path is a valid string (fallback to empty string if None)
     session_state.mark_injected(
-        str(transcript_path) if transcript_path is not None else ""
+        str(transcript_path) if transcript_path is not None else "",
     )
 
     # Get project directory from environment
@@ -163,79 +245,103 @@ async def handle_async(data):
     # Import and get agent recommendations
     from UserPromptSubmit.agent_injector import get_agent_injection
 
-    # Create async tasks for parallel execution
-    # Group 1: Basic injections (these are already sync, run directly)
-    prefix = get_prefix() if INJECTION_CIRCUIT_BREAKERS["prefix"] else ""
-    zen_instruction = (
-        get_zen_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["zen"] else ""
-    )
-    content_instruction = (
-        get_content_injection(user_prompt)
-        if INJECTION_CIRCUIT_BREAKERS["content"]
-        else ""
-    )
-    trigger_instruction = (
-        get_trigger_injection(user_prompt)
-        if INJECTION_CIRCUIT_BREAKERS["trigger"]
-        else ""
-    )
-    tree_sitter_injection = (
-        create_tree_sitter_injection(user_prompt)
-        if INJECTION_CIRCUIT_BREAKERS["tree_sitter"]
-        else ""
-    )
-    tree_sitter_hints = (
-        get_tree_sitter_hints(user_prompt)
-        if INJECTION_CIRCUIT_BREAKERS["tree_sitter_hints"]
-        else ""
-    )
-    mcp_recommendations = (
-        get_mcp_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["mcp"] else ""
-    )
-    suffix = get_suffix(user_prompt) if INJECTION_CIRCUIT_BREAKERS["suffix"] else ""
-    agent_recommendations = (
-        get_agent_injection(user_prompt) if INJECTION_CIRCUIT_BREAKERS["agent"] else ""
-    )
+    # Create ALL tasks for true parallel execution
+    all_tasks = []
+    task_names = []
 
-    # Group 2: Async injections that can run in parallel
-    async_tasks = []
-    async_results = {}
+    # Add sync injections wrapped in asyncio.to_thread for true parallelism
+    if ENABLED_INJECTIONS.get("prefix"):
+        all_tasks.append(asyncio.to_thread(get_prefix))
+        task_names.append("prefix")
 
-    # Build list of enabled async tasks
-    if INJECTION_CIRCUIT_BREAKERS["git"]:
-        async_tasks.append(("git", get_git_injection(project_dir)))
-    if INJECTION_CIRCUIT_BREAKERS["runtime_monitoring"]:
-        async_tasks.append(("runtime_monitoring", get_runtime_monitoring_injection()))
-    if INJECTION_CIRCUIT_BREAKERS["test_status"]:
-        async_tasks.append(
-            ("test_status", get_test_status_injection(user_prompt, project_dir))
-        )
-    if INJECTION_CIRCUIT_BREAKERS["lsp_diagnostics"]:
-        async_tasks.append(
-            ("lsp_diagnostics", get_lsp_diagnostics_injection(user_prompt, project_dir))
-        )
-    if INJECTION_CIRCUIT_BREAKERS["context_history"]:
-        async_tasks.append(
-            ("context_history", get_context_history_injection(user_prompt, project_dir))
-        )
-    if INJECTION_CIRCUIT_BREAKERS["firecrawl"]:
-        async_tasks.append(
-            ("firecrawl", get_firecrawl_injection(user_prompt, project_dir))
-        )
+    if ENABLED_INJECTIONS.get("zen"):
+        all_tasks.append(asyncio.to_thread(get_zen_injection, user_prompt))
+        task_names.append("zen")
 
-    # Execute enabled async tasks in parallel
-    if async_tasks:
-        task_names, task_coroutines = zip(*async_tasks)
-        results = await asyncio.gather(*task_coroutines)
-        async_results = dict(zip(task_names, results))
+    if ENABLED_INJECTIONS.get("content"):
+        all_tasks.append(asyncio.to_thread(get_content_injection, user_prompt))
+        task_names.append("content")
 
-    # Get results with defaults for disabled injections
-    git_injection = async_results.get("git", "")
-    runtime_monitoring = async_results.get("runtime_monitoring", "")
-    test_status = async_results.get("test_status", "")
-    lsp_diagnostics = async_results.get("lsp_diagnostics", "")
-    context_history = async_results.get("context_history", "")
-    firecrawl_context = async_results.get("firecrawl", "")
+    if ENABLED_INJECTIONS.get("trigger"):
+        all_tasks.append(asyncio.to_thread(get_trigger_injection, user_prompt))
+        task_names.append("trigger")
+
+    if ENABLED_INJECTIONS.get("tree_sitter"):
+        all_tasks.append(asyncio.to_thread(create_tree_sitter_injection, user_prompt))
+        task_names.append("tree_sitter")
+
+    if ENABLED_INJECTIONS.get("tree_sitter_hints"):
+        all_tasks.append(asyncio.to_thread(get_tree_sitter_hints, user_prompt))
+        task_names.append("tree_sitter_hints")
+
+    if ENABLED_INJECTIONS.get("mcp"):
+        all_tasks.append(asyncio.to_thread(get_mcp_injection, user_prompt))
+        task_names.append("mcp")
+
+    if ENABLED_INJECTIONS.get("suffix"):
+        all_tasks.append(asyncio.to_thread(get_suffix, user_prompt))
+        task_names.append("suffix")
+
+    if ENABLED_INJECTIONS.get("agent"):
+        all_tasks.append(asyncio.to_thread(get_agent_injection, user_prompt))
+        task_names.append("agent")
+
+    # Add native async injections
+    if ENABLED_INJECTIONS.get("git"):
+        all_tasks.append(get_git_injection(project_dir))
+        task_names.append("git")
+
+    if ENABLED_INJECTIONS.get("runtime_monitoring"):
+        all_tasks.append(get_runtime_monitoring_injection())
+        task_names.append("runtime_monitoring")
+
+    if ENABLED_INJECTIONS.get("test_status"):
+        all_tasks.append(get_test_status_injection(user_prompt, project_dir))
+        task_names.append("test_status")
+
+    if ENABLED_INJECTIONS.get("lsp_diagnostics"):
+        all_tasks.append(get_lsp_diagnostics_injection(user_prompt, project_dir))
+        task_names.append("lsp_diagnostics")
+
+    if ENABLED_INJECTIONS.get("context_history"):
+        all_tasks.append(get_context_history_injection(user_prompt, project_dir))
+        task_names.append("context_history")
+
+    if ENABLED_INJECTIONS.get("firecrawl"):
+        all_tasks.append(get_firecrawl_injection(user_prompt, project_dir))
+        task_names.append("firecrawl")
+
+    # Execute ALL tasks in parallel and gather results
+    if all_tasks:
+        results = await asyncio.gather(*all_tasks, return_exceptions=True)
+
+        # Create result dictionary mapping task names to results
+        results_dict = {}
+        for i, (name, result) in enumerate(zip(task_names, results)):
+            if isinstance(result, Exception):
+                print(f"Error in {name} injection: {result}", file=sys.stderr)
+                results_dict[name] = ""
+            else:
+                results_dict[name] = result or ""
+    else:
+        results_dict = {}
+
+    # Extract results with defaults for any missing/disabled injections
+    prefix = results_dict.get("prefix", "")
+    zen_instruction = results_dict.get("zen", "")
+    content_instruction = results_dict.get("content", "")
+    trigger_instruction = results_dict.get("trigger", "")
+    tree_sitter_injection = results_dict.get("tree_sitter", "")
+    tree_sitter_hints = results_dict.get("tree_sitter_hints", "")
+    mcp_recommendations = results_dict.get("mcp", "")
+    suffix = results_dict.get("suffix", "")
+    agent_recommendations = results_dict.get("agent", "")
+    git_injection = results_dict.get("git", "")
+    runtime_monitoring = results_dict.get("runtime_monitoring", "")
+    test_status = results_dict.get("test_status", "")
+    lsp_diagnostics = results_dict.get("lsp_diagnostics", "")
+    context_history = results_dict.get("context_history", "")
+    firecrawl_context = results_dict.get("firecrawl", "")
 
     # Build additional context - combine all injections
     # Git injection goes early for foundational context, firecrawl provides web context

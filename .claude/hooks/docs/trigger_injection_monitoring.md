@@ -82,7 +82,6 @@ Detects complex workflows that benefit from multiple tools:
 2. **Python Debugging** (+15 boost)
    - "debug python error"
    - "fix python bug"
-   - Suggests: Serena + ZEN
 
 3. **Architecture Planning** (+25 boost)
    - "design system architecture"
@@ -92,7 +91,7 @@ Detects complex workflows that benefit from multiple tools:
 4. **Migration Projects** (+20 boost)
    - "migrate database schema"
    - "refactor legacy code"
-   - Suggests: ZEN + Filesystem + Serena
+   - Suggests: ZEN + Filesystem + 
 
 ### Custom Patterns
 ```json
