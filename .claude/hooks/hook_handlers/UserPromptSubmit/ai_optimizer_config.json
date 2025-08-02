@@ -1,0 +1,124 @@
+{
+  "openrouter": {
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "default_model": "google/gemini-2.5-flash",
+    "fallback_models": [
+      "google/gemini-2.5-pro",
+      "meta-llama/llama-3.1-8b-instruct:free"
+    ],
+    "temperature": 0.3,
+    "max_tokens": 2000,
+    "timeout": 30.0,
+    "sync_timeout": 15
+  },
+  "spacy": {
+    "model": "en_core_web_sm",
+    "patterns": {
+      "urgency": ["urgent", "asap", "immediately", "critical", "emergency"],
+      "tech_debt": ["hack", "workaround", "temporary", "quick"],
+      "frameworks": ["React", "Vue", "Angular", "Django", "Flask", "Rails", "Spring", "Express"]
+    }
+  },
+  "task_categories": {
+    "debugging": ["fix", "debug", "error", "bug", "issue", "problem", "crash", "fail"],
+    "implementation": ["implement", "create", "build", "add", "develop", "new feature"],
+    "refactoring": ["refactor", "optimize", "improve", "clean", "reorganize", "restructure"],
+    "security": ["security", "auth", "authentication", "jwt", "token", "encrypt", "password", "vulnerable"],
+    "performance": ["performance", "slow", "optimize", "speed", "latency", "bottleneck"],
+    "architecture": ["architecture", "microservice", "design", "pattern", "structure", "system"],
+    "testing": ["test", "testing", "coverage", "unit test", "integration test"],
+    "documentation": ["document", "docs", "readme", "comment", "explain"],
+    "deployment": ["deploy", "deployment", "ci/cd", "pipeline", "production"],
+    "migration": ["migrate", "migration", "upgrade", "version", "update", "port"]
+  },
+  "complexity_indicators": {
+    "simple": ["simple", "quick", "basic", "trivial", "straightforward", "easy"],
+    "moderate": ["moderate", "standard", "typical", "normal"],
+    "complex": ["complex", "complicated", "intricate", "advanced", "sophisticated", "challenging"]
+  },
+  "risk_indicators": {
+    "data_loss": ["delete", "remove", "drop", "destroy", "purge", "truncate"],
+    "security": ["auth", "password", "token", "encryption", "access", "permission"],
+    "financial": ["payment", "billing", "transaction", "money", "financial"],
+    "user_impact": ["user", "customer", "client", "account"],
+    "system_critical": ["production", "critical", "core", "essential", "vital"]
+  },
+  "analysis": {
+    "priority_keywords": ["error", "fail", "critical", "warning", "TODO", "FIXME"],
+    "tech_terms": ["architecture", "microservice", "distributed", "scalable", "concurrent", "async"],
+    "system_patterns": ["api", "database", "server", "client", "frontend", "backend", "service"],
+    "tech_keywords": ["api", "database", "cache", "queue", "webhook", "endpoint", "schema", "migration"],
+    "error_patterns": ["error:", "exception:", "failed:", "❌", "traceback", "stack trace"],
+    "positive_words": ["good", "great", "excellent", "improve", "enhance", "optimize"],
+    "negative_words": ["bad", "poor", "broken", "fail", "error", "wrong", "issue"]
+  },
+  "questionnaire": {
+    "complexity_map": {
+      "simple": "Simple",
+      "moderate": "Moderate", 
+      "complex": "Complex"
+    },
+    "time_map": {
+      "simple": "15-30 minutes",
+      "moderate": "30-90 minutes",
+      "complex": "2-4 hours"
+    },
+    "task_to_agent": {
+      "debugging": "debugger",
+      "security": "security-auditor",
+      "refactoring": "code-refactorer",
+      "performance": "performance-optimizer",
+      "testing": "test-strategist",
+      "architecture": "api-architect",
+      "migration": "migration-planner"
+    },
+    "risk_levels": {
+      "base": 3,
+      "per_risk_multiplier": 2,
+      "urgency_bonus": 1,
+      "max_risk": 10
+    },
+    "confidence_levels": {
+      "base": 7,
+      "urgency_penalty": 1,
+      "complexity_penalty": 1,
+      "entity_bonus": 1
+    }
+  },
+  "logging": {
+    "level": "DEBUG",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "handlers": ["stream"]
+  },
+  "api": {
+    "headers": {
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://github.com/anthropics/claude-code",
+      "X-Title": "Claude Code AI Context Optimizer"
+    }
+  },
+  "context_detection": {
+    "tags": ["<lsp-diagnostics>", "<test-status>", "<git-status>", "<mcp-tools>", "<session-data>"],
+    "section_patterns": {
+      "diagnostics": ["❌ Errors:", "⚠️ Warnings:", "💡 Info:"],
+      "git": ["Current branch:", "Status:", "Recent commits:"],
+      "tests": ["PYTEST:", "Recent failures:", "Coverage:"]
+    }
+  },
+  "display": {
+    "max_context_sections": 5,
+    "max_context_length": 2000,
+    "truncation_marker": "... [truncated]",
+    "section_separator": "\n\n"
+  },
+  "output_formats": {
+    "fallback_template": "USER'S QUESTION:\n{user_prompt}\n\nCONTEXT ANALYSIS:\n{analysis}\n\nRECOMMENDED APPROACH:\n{approach}",
+    "context_prefix": "AVAILABLE CONTEXT:",
+    "analysis_prefix": "CONTEXT ANALYSIS:",
+    "approach_prefix": "RECOMMENDED APPROACH:"
+  },
+  "prompts": {
+    "system_template": "You are an AI prompt engineer specializing in optimizing context for Claude Code.\n\nYour job is to analyze the user's question and the provided context, then create an enhanced instruction that will help Claude provide the best possible answer.\n\nKey objectives:\n1. Understand what the user is asking\n2. Extract ALL relevant information from the context that could help\n3. Create a clear, structured prompt that guides Claude\n4. Include specific details from the context when relevant\n5. Maintain the user's original question but enhance it with context\n6. ALWAYS include the CLAUDE CODE META ANALYSIS questionnaire\n\nOUTPUT FORMAT:\nCreate a clear, actionable prompt that:\n1. Restates the user's question with clarity\n2. Provides relevant context that helps answer it\n3. Guides Claude on how to approach the answer\n4. Highlights any critical information from the context\n5. ALWAYS ends with the CLAUDE CODE META ANALYSIS questionnaire (see below)\n\nREQUIRED: You MUST include the following questionnaire at the end of your response, filled out based on your analysis:\n\n=== CLAUDE CODE META ANALYSIS ===\n1. Confidence Level: [1-10 scale]\n2. Additional Information Needed: [What else would help?]\n3. Primary Concerns: [Main issues or challenges]\n4. Proposed Next Steps: [Numbered list of actions]\n5. Web Research Recommended: [Yes/No]\n6. Context7 Documentation Needed: [Yes/No - for library docs]\n7. ZEN Consultation Advised: [Yes/No - for complex tasks]\n8. Task Complexity Assessment: [Simple/Moderate/Complex]\n9. Estimated Time: [Rough estimate]\n10. Alternative Approaches: [Other ways to solve this]\n11. Parallelizable Components: [What can be done simultaneously]\n12. Subagent Recommendations: [Which specialist agents to use]\n13. Warnings/Hidden Risks: [Potential issues to watch for]\n14. Counter-Arguments: [Why this might not be the best approach]\n15. Technical Debt Impact: [Creating/Reducing/Neutral]\n16. Risk Level: [1-10 scale]\n17. Affected Systems: [What parts of the codebase]\n18. Bias/Anti-Pattern Check: [Yes/No - is this a bad practice?]\n19. Better Approach Available: [Yes/No]\n20. Clarifying Questions: [What to ask the user]\n===\n\nDO NOT create AI roles or lengthy system instructions. Focus on creating a concise, enhanced version of the user's request followed by the questionnaire.",
+    "user_template": "USER'S QUESTION:\n{user_prompt}\n\nAVAILABLE CONTEXT:\n{raw_context}\n\nTASK:\nCreate an optimized instruction prompt that helps Claude answer the user's question effectively. Include relevant context details that enhance understanding."
+  }
+}
