@@ -1,0 +1,46 @@
+{
+  "demo-session-001": {
+    "subagent_delegation": 1754249329.4969196,
+    "todo_pattern": 1754249329.9389675
+  },
+  "demo_session": {
+    "subagent_delegation": 1754249516.1365716,
+    "complex_bash": 1754249516.1372054
+  },
+  "normal_session": {
+    "subagent_delegation": 1754249516.1374292
+  },
+  "test-session-fix": {
+    "subagent_delegation": 1754249545.2371695
+  },
+  "test-5fb9969a": {
+    "subagent_delegation": 1754249703.0532913
+  },
+  "test-f48b4af7": {
+    "subagent_delegation": 1754249703.1933374
+  },
+  "test-d51f032e": {
+    "subagent_delegation": 1754249703.3362
+  },
+  "test-debug-session": {
+    "todo_pattern": 1754250385.1786497
+  },
+  "fresh-test-session": {
+    "todo_pattern": 1754250395.1240304
+  },
+  "test-session-todowrite-001": {
+    "todo_pattern": 1754251156.6168041
+  },
+  "test-session-once-001": {
+    "todo_pattern": 1754251156.7547677
+  },
+  "test-direct-session-001": {
+    "todo_pattern": 1754251175.273015
+  },
+  "test-simple-session-001": {
+    "todo_pattern": 1754251200.1974154
+  },
+  "c0ccd9d5-6111-4f9d-b70b-9e38e7f7c911": {
+    "todo_pattern": 1754251793.1962974
+  }
+}

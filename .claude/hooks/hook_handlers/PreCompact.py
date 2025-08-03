@@ -9,8 +9,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from UserPromptSubmit.session_state import SessionState
 
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
+
 def handle(data):
     """Handle PreCompact hook events"""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(data, "PreCompact")
+    
     trigger = data.get('trigger', '')
     custom_instructions = data.get('custom_instructions', '')
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -32,5 +42,10 @@ def handle(data):
         print(f"Marked for context injection on next prompt after compact (trigger: {trigger})", file=sys.stderr)
     except Exception as e:
         print(f"Error marking for injection: {e}", file=sys.stderr)
+        if hook_logger:
+            hook_logger.log_error(data, e)
     
+    # Log successful exit with trigger info
+    if hook_logger:
+        hook_logger.log_hook_exit(data, 0, result=f"success_trigger_{trigger}")
     sys.exit(0)

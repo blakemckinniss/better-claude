@@ -120,12 +120,8 @@ class PythonFormatter(CodeFormatter):
             ["add-trailing-comma", "--py36-plus", file_path],
             # ssort: sorts class members
             ["ssort", file_path],
-            # black: code formatter
-            ["black", file_path],
-            # ruff: linter and formatter (with fixes)
-            ["ruff", "check", "--fix", file_path],
-            # ruff format: additional formatting
-            ["ruff", "format", file_path],
+            # Note: Black and Ruff are now handled by python_auto_fixer.py
+            # which runs BEFORE formatters to fix syntax errors first
             # refurb: additional code modernization
             ["refurb", "--write", file_path],
         ])

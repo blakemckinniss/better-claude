@@ -32,6 +32,13 @@ from PreToolUse.path_validator import (
     is_protected_file,
 )
 from PreToolUse.pattern_detector import IntelligentPatternDetector
+from PreToolUse.read_blocker import check_read_operation_block
+
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
 
 
 def check_file_size_reduction(
@@ -166,7 +173,6 @@ def check_technical_debt_filename(file_path: str) -> Tuple[bool, str]:
         "archived",
         "obsolete",
         "draft",
-        "test",
         "example",
         "sample",
         "_old",
@@ -211,10 +217,15 @@ def handle_file_operation(
     # Extract file path and operation
     file_path, operation = get_file_operation_from_tool(tool_name, tool_input)
 
+    # Check for Read operation blocking FIRST (highest priority)
+    should_block_read, guidance = check_read_operation_block(tool_name, operation)
+    if should_block_read:
+        return False, guidance, []
+
     if not file_path:
         return True, "", []
 
-    # Check for destructive edits FIRST (highest priority)
+    # Check for destructive edits (second priority)
     is_destructive, reason = check_file_size_reduction(file_path, operation, tool_input)
     if is_destructive:
         return False, reason, []
@@ -346,6 +357,10 @@ def handle_permission_request(
 
 def handle(event_data: Dict[str, Any]) -> None:
     """Main handler for PreToolUse hook."""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(event_data, "PreToolUse")
+    
     try:
         # Extract tool information
         tool_name = event_data.get("tool_name", "")
@@ -353,7 +368,9 @@ def handle(event_data: Dict[str, Any]) -> None:
 
         # Skip if no tool name
         if not tool_name:
-            return
+            if hook_logger:
+                hook_logger.log_hook_exit(event_data, 0, result="no_tool_name")
+            sys.exit(0)
 
         # Initialize components
         config = get_config()
@@ -394,6 +411,8 @@ def handle(event_data: Dict[str, Any]) -> None:
                 "   /home/devcontainers/better-claude/.claude/hooks/hook_handler.py",
                 file=sys.stderr,
             )
+            if hook_logger:
+                hook_logger.log_hook_exit(event_data, 2, error=block_reason)
             sys.exit(2)
 
         # Show warnings if any
@@ -410,10 +429,19 @@ def handle(event_data: Dict[str, Any]) -> None:
             )
             if output:
                 print(output)
+        
+        # Successful completion
+        if hook_logger:
+            hook_logger.log_hook_exit(event_data, 0, result="allowed")
+        sys.exit(0)
 
     except Exception as e:
         # Don't fail operations due to hook errors
         print(f"Hook error (operation allowed): {str(e)}", file=sys.stderr)
+        if hook_logger:
+            hook_logger.log_error(event_data, e)
+            hook_logger.log_hook_exit(event_data, 0, error=str(e))
+        sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-08-03T16:38:45.017707",
+  "level": "INFO",
+  "hook_event": "PostToolUse",
+  "session_id": "a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d",
+  "transcript_path": "/home/devcontainers/.claude/projects/-home-devcontainers-better-claude/a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d.jsonl",
+  "cwd": "/home/devcontainers/better-claude",
+  "metrics": {
+    "log_number": 1,
+    "session_duration": 8.082389831542969e-05
+  },
+  "tool": {
+    "name": "Bash",
+    "input": {
+      "command": "rm -rf .claude/logs/* && echo \"Logs cleared\"",
+      "description": "Clear log files to free space"
+    },
+    "response": {
+      "stdout": "Logs cleared",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false
+    }
+  }
+}
+{
+  "timestamp": "2025-08-03T16:38:45.131016",
+  "level": "INFO",
+  "hook_event": "PostToolUse",
+  "session_id": "a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d",
+  "transcript_path": "/home/devcontainers/.claude/projects/-home-devcontainers-better-claude/a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d.jsonl",
+  "cwd": "/home/devcontainers/better-claude",
+  "metrics": {
+    "log_number": 2,
+    "session_duration": 0.11339044570922852
+  },
+  "tool": {
+    "name": "Bash",
+    "input": {
+      "command": "rm -rf .claude/logs/* && echo \"Logs cleared\"",
+      "description": "Clear log files to free space"
+    },
+    "response": {
+      "stdout": "Logs cleared",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false
+    }
+  }
+}
+{
+  "timestamp": "2025-08-03T16:38:45.132360",
+  "level": "INFO",
+  "hook_event": "PostToolUse",
+  "session_id": "a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d",
+  "transcript_path": "/home/devcontainers/.claude/projects/-home-devcontainers-better-claude/a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d.jsonl",
+  "cwd": "/home/devcontainers/better-claude",
+  "metrics": {
+    "log_number": 3,
+    "session_duration": 0.1147315502166748
+  },
+  "tool": {
+    "name": "Bash",
+    "input": {
+      "command": "rm -rf .claude/logs/* && echo \"Logs cleared\"",
+      "description": "Clear log files to free space"
+    },
+    "response": {
+      "stdout": "Logs cleared",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false
+    }
+  },
+  "result": "allowed"
+}

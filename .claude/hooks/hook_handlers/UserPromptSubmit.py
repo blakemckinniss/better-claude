@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+"""
+UserPromptSubmit Hook Handler
+
+Purpose: Inject contextual information before user prompts are processed by Claude.
+This hook enhances Claude's understanding by providing:
+- Git repository state
+- Code intelligence (tree-sitter, LSP diagnostics)
+- System monitoring information
+- Smart recommendations
+- Historical context
+- MCP server information
+
+Security: This hook validates all inputs and sanitizes file paths to prevent
+path traversal and access to sensitive files.
+
+Exit Codes:
+- 0: Success (context injected or skipped appropriately)
+- 1: Non-blocking error (execution continues)
+- 2: Blocking error (prevents prompt processing)
+"""
 import asyncio
 import functools
 import json
@@ -9,6 +29,20 @@ from typing import Dict, Optional, Tuple
 
 # Add the current directory to the path so we can import the UserPromptSubmit module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
+
+# Import session monitor
+try:
+    from session_monitor import get_session_monitor
+    HAS_SESSION_MONITOR = True
+except ImportError:
+    HAS_SESSION_MONITOR = False
+    get_session_monitor = None
 
 # Circuit breaker configuration for enabling/disabling injections
 # Set to False to disable specific injections
@@ -21,7 +55,8 @@ INJECTION_CIRCUIT_BREAKERS = {
     "context_revival": True,  # Historical context injection
     "git": True,  # Git injection (standalone)
     "mcp": True,  # MCP injection (standalone)
-    "firecrawl": False,  # Firecrawl injection (disabled by default)
+    "firecrawl": False,  # Firecrawl injection
+    "zed_pro_orchestrator": True,  # ZED-PRO master orchestrator (CRITICAL - DO NOT DISABLE)
 }
 
 # Pre-compute enabled injections for performance
@@ -30,6 +65,80 @@ ENABLED_INJECTIONS = {k: v for k, v in INJECTION_CIRCUIT_BREAKERS.items() if v}
 # File cache for transcript reads
 _transcript_cache: Dict[str, Tuple[bytes, float]] = {}
 CACHE_TTL = 5.0  # 5 seconds TTL for transcript cache
+
+# Security: Sensitive file patterns to skip
+SENSITIVE_PATTERNS = [
+    ".env", ".git/", ".ssh/", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    ".pem", ".key", ".cert", ".crt", "password", "secret", "token",
+    ".aws/", ".azure/", ".gcloud/", "credentials"
+]
+
+
+def is_path_secure(path: str) -> bool:
+    """
+    Validate that a path is secure and doesn't contain path traversal or sensitive files.
+    
+    Args:
+        path: The file path to validate
+        
+    Returns:
+        bool: True if path is secure, False otherwise
+    """
+    if not path:
+        return True  # Empty path is safe
+    
+    # Check for path traversal
+    if ".." in path:
+        return False
+    
+    # Check for sensitive files
+    path_lower = path.lower()
+    for pattern in SENSITIVE_PATTERNS:
+        if pattern in path_lower:
+            return False
+    
+    # Check for system directories
+    if path.startswith("/etc") or path.startswith("/sys") or path.startswith("/proc"):
+        return False
+    
+    return True
+
+
+def validate_input_data(data: Dict) -> Optional[Dict]:
+    """
+    Validate input data according to contract requirements.
+    
+    Args:
+        data: Input data from stdin
+        
+    Returns:
+        Dict: Validated data or None if validation fails
+    """
+    # Required fields according to contract section 3.1
+    required_fields = ["session_id", "transcript_path", "cwd", "hook_event_name"]
+    
+    for field in required_fields:
+        if field not in data:
+            print(f"Error: Missing required field '{field}'", file=sys.stderr)
+            return None
+    
+    # Validate hook event name
+    if data["hook_event_name"] != "UserPromptSubmit":
+        print(f"Error: Invalid hook event '{data['hook_event_name']}', expected 'UserPromptSubmit'", file=sys.stderr)
+        return None
+    
+    # Validate transcript path security
+    transcript_path = data.get("transcript_path", "")
+    if transcript_path and not is_path_secure(transcript_path):
+        print(f"Security: Blocked access to sensitive path: {transcript_path}", file=sys.stderr)
+        return None
+    
+    # UserPromptSubmit specific: validate prompt field
+    if "prompt" not in data:
+        print("Error: Missing 'prompt' field for UserPromptSubmit", file=sys.stderr)
+        return None
+    
+    return data
 
 
 def perf_monitor(func):
@@ -106,26 +215,21 @@ load_env_file()
 
 
 # Import consolidated injectors and remaining standalone injectors
+from UserPromptSubmit.ai_context_optimizer import optimize_injection_sync  # noqa: E402
 from UserPromptSubmit.code_intelligence_hub import (
-    create_code_intelligence_injection,
-)  # noqa: E402
-from UserPromptSubmit.enhanced_ai_optimizer import (
-    optimize_injection_enhanced_sync,
-)  # noqa: E402
+    create_code_intelligence_injection,  # noqa: E402
+)
+from UserPromptSubmit.context_revival import get_context_revival_injection  # noqa: E402
 from UserPromptSubmit.firecrawl_injection import get_firecrawl_injection  # noqa: E402
 from UserPromptSubmit.git_injection import get_git_injection  # noqa: E402
 from UserPromptSubmit.mcp_injector import get_mcp_injection  # noqa: E402
 from UserPromptSubmit.session_state import SessionState  # noqa: E402
-from UserPromptSubmit.static_content import get_static_content_injection  # noqa: E402
 from UserPromptSubmit.system_monitor import (
-    get_system_monitoring_injection,
-)  # noqa: E402
+    get_system_monitoring_injection,  # noqa: E402
+)
 from UserPromptSubmit.unified_smart_advisor import (
-    get_smart_recommendations,
-)  # noqa: E402
-from UserPromptSubmit.context_revival import (
-    get_context_revival_injection,
-)  # noqa: E402
+    get_smart_recommendations,  # noqa: E402
+)
 
 
 def read_transcript_cached(transcript_path: str) -> Optional[bytes]:
@@ -179,7 +283,7 @@ def should_inject_context(data, session_state=None):
         # First check session state rules (forced injection, message count, etc.)
         if session_state.should_inject(transcript_path):
             # This will return True for:
-            # - First time (inject_next is True by default)
+            # - First time (inject_next is True)
             # - After SubagentStop or PreCompact marked for injection
             # - After 5 messages
             # - When transcript changes
@@ -197,148 +301,236 @@ def should_inject_context(data, session_state=None):
         return False
 
     except Exception as e:
-        # On any error, default to including context (safer option)
-        print(f"Error checking injection status: {e}", file=sys.stderr)
-        return True
+        # Contract 2.2: Use exit code 2 for blocking errors
+        print(f"Error: Failed to check injection status: {e}", file=sys.stderr)
+        sys.exit(2)
 
 
 async def handle_async(data):
     """Async handle UserPromptSubmit hook events with parallel execution."""
-    # Extract user prompt from data if available
-    user_prompt = data.get("prompt", "") if isinstance(data, dict) else ""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(data, "UserPromptSubmit")
+    
+    try:
+        # Extract user prompt from data if available
+        try:
+            user_prompt = data.get("prompt", "") if isinstance(data, dict) else ""
+        except Exception as e:
+            if hook_logger:
+                hook_logger.log_error(data, e)
+            print(f"Error: Failed to extract user prompt: {e}", file=sys.stderr)
+            sys.exit(1)
 
-    # Initialize session state once
-    session_state = SessionState()
-    transcript_path = data.get("transcript_path")
+        # Log user prompt to session monitor
+        if HAS_SESSION_MONITOR and get_session_monitor and user_prompt:
+            try:
+                session_id = data.get("session_id", "unknown")
+                if session_id != "unknown":
+                    monitor = get_session_monitor(session_id)
+                    monitor.log_prompt(user_prompt, {
+                        "timestamp": datetime.now().isoformat(),
+                        "transcript_path": data.get("transcript_path", ""),
+                        "cwd": data.get("cwd", "")
+                    })
+            except Exception as e:
+                if os.environ.get("DEBUG_HOOKS"):
+                    print(f"Error logging to session monitor: {e}", file=sys.stderr)
 
-    # Check if we should inject context (pass session state to avoid duplicate)
-    should_inject = should_inject_context(data, session_state)
+        # Initialize session state once
+        session_state = SessionState()
+        transcript_path = data.get("transcript_path")
 
-    if not should_inject:
-        # Increment message count for next check
-        session_state.increment_message_count()
+        # Check if we should inject context (pass session state to avoid duplicate)
+        should_inject = should_inject_context(data, session_state)
 
-        # Return minimal context for continued conversation
+        if not should_inject:
+            # Increment message count for next check
+            session_state.increment_message_count()
+
+            # Return minimal context for continued conversation
+            # Contract 3.2: Return proper JSON structure
+            output = {
+                "continue": True,  # Allow processing to continue
+                "suppressOutput": False,  # Show in transcript
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": "",  # Empty context for subsequent prompts
+                },
+            }
+            print(json.dumps(output))
+            if hook_logger:
+                hook_logger.log_hook_exit(data, 0, result="no_context_injection")
+            sys.exit(0)
+
+        # Mark that we're injecting context
+        if transcript_path is None:
+            print("Error: transcript_path cannot be None when marking injection", file=sys.stderr)
+            sys.exit(2)
+        session_state.mark_injected(str(transcript_path))
+
+        # Get project directory from environment
+        project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+
+        # Create ALL tasks for true parallel execution
+        all_tasks = []
+        task_names = []
+
+        # Add consolidated injectors wrapped in asyncio.to_thread for true parallelism
+        if ENABLED_INJECTIONS.get("unified_smart_advisor"):
+            all_tasks.append(asyncio.to_thread(get_smart_recommendations, user_prompt))
+            task_names.append("unified_smart_advisor")
+
+        if ENABLED_INJECTIONS.get("code_intelligence_hub"):
+            # This is an async function, call directly without to_thread
+            all_tasks.append(create_code_intelligence_injection(user_prompt))
+            task_names.append("code_intelligence_hub")
+
+        if ENABLED_INJECTIONS.get("system_monitor"):
+            # This is an async function, call directly without to_thread
+            all_tasks.append(get_system_monitoring_injection(user_prompt, project_dir))
+            task_names.append("system_monitor")
+
+        # Note: Static content is now appended AFTER Gemini enhancement in ai_context_optimizer
+        # Removing this from parallel tasks to prevent duplication
+        
+        if ENABLED_INJECTIONS.get("context_revival"):
+            all_tasks.append(asyncio.to_thread(get_context_revival_injection, user_prompt, project_dir))
+            task_names.append("context_revival")
+
+        if ENABLED_INJECTIONS.get("mcp"):
+            all_tasks.append(asyncio.to_thread(get_mcp_injection, user_prompt))
+            task_names.append("mcp")
+
+        # Add native async injections
+        if ENABLED_INJECTIONS.get("git"):
+            all_tasks.append(get_git_injection(project_dir))
+            task_names.append("git")
+
+        if ENABLED_INJECTIONS.get("firecrawl"):
+            all_tasks.append(get_firecrawl_injection(user_prompt, project_dir))
+            task_names.append("firecrawl")
+
+        # Execute ALL tasks in parallel and gather results
+        results_dict = {}
+        if all_tasks:
+            results = await asyncio.gather(*all_tasks, return_exceptions=True)
+
+            # Create result dictionary mapping task names to results
+            for i, (name, result) in enumerate(zip(task_names, results)):
+                if isinstance(result, Exception):
+                    # Contract 2.2: Use exit code 2 for blocking errors
+                    print(f"Error: Failed in {name} injection: {result}", file=sys.stderr)
+                    sys.exit(2)
+                else:
+                    if result is None:
+                        print(f"Error: {name} injection returned None - expected valid content", file=sys.stderr)
+                        sys.exit(2)
+                    results_dict[name] = result
+
+        # Extract results - fail if any expected injection is missing
+        unified_advisor = results_dict.get("unified_smart_advisor")
+        if unified_advisor is None and ENABLED_INJECTIONS.get("unified_smart_advisor"):
+            print("Error: unified_smart_advisor injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+        
+        code_intelligence = results_dict.get("code_intelligence_hub")
+        if code_intelligence is None and ENABLED_INJECTIONS.get("code_intelligence_hub"):
+            print("Error: code_intelligence_hub injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+        
+        system_monitor = results_dict.get("system_monitor")
+        if system_monitor is None and ENABLED_INJECTIONS.get("system_monitor"):
+            print("Error: system_monitor injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+            
+        context_revival = results_dict.get("context_revival")
+        if context_revival is None and ENABLED_INJECTIONS.get("context_revival"):
+            print("Error: context_revival injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+            
+        mcp_recommendations = results_dict.get("mcp")
+        if mcp_recommendations is None and ENABLED_INJECTIONS.get("mcp"):
+            print("Error: mcp injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+            
+        git_injection = results_dict.get("git")
+        if git_injection is None and ENABLED_INJECTIONS.get("git"):
+            print("Error: git injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+            
+        firecrawl_context = results_dict.get("firecrawl")
+        if firecrawl_context is None and ENABLED_INJECTIONS.get("firecrawl"):
+            print("Error: firecrawl injection failed to produce content", file=sys.stderr)
+            sys.exit(2)
+
+        # Build context only from enabled injections
+        unified_advisor = unified_advisor if ENABLED_INJECTIONS.get("unified_smart_advisor") else ""
+        code_intelligence = code_intelligence if ENABLED_INJECTIONS.get("code_intelligence_hub") else ""
+        system_monitor = system_monitor if ENABLED_INJECTIONS.get("system_monitor") else ""
+        context_revival = context_revival if ENABLED_INJECTIONS.get("context_revival") else ""
+        mcp_recommendations = mcp_recommendations if ENABLED_INJECTIONS.get("mcp") else ""
+        git_injection = git_injection if ENABLED_INJECTIONS.get("git") else ""
+        firecrawl_context = firecrawl_context if ENABLED_INJECTIONS.get("firecrawl") else ""
+
+        # Build additional context - combine all injections
+        # Git injection goes early for foundational context, context revival provides historical context
+        # Note: static_content is now appended AFTER Gemini enhancement in ai_context_optimizer
+        raw_context = (
+            f"{git_injection}\n{context_revival}{system_monitor}{firecrawl_context}{unified_advisor}"
+            f"{code_intelligence}{mcp_recommendations}"
+        )
+
+        # ALWAYS optimize context with AI - no env checks, fails loudly if API fails
+        # This now includes: Gemini enhancement + static content + ZED-PRO
+        if INJECTION_CIRCUIT_BREAKERS["enhanced_ai_optimizer"]:
+            try:
+                additional_context = optimize_injection_sync(user_prompt, raw_context)
+            except Exception as e:
+                # Contract 2.2: Use exit code 2 for blocking errors
+                print(f"Error: AI optimization failed: {e}", file=sys.stderr)
+                sys.exit(2)
+        else:
+            # If circuit breaker is disabled, just use raw context (should not happen in production)
+            print("[AI_OPTIMIZER] WARNING - Circuit breaker disabled, using raw context", file=sys.stderr)
+            additional_context = raw_context
+
+        # Note: ZED-PRO is now invoked INSIDE ai_context_optimizer.py after Gemini enhancement
+        # This ensures the proper flow: User prompt → Gemini → Static content → ZED-PRO
+
+        # Contract 3.2: Return proper JSON structure with all required fields
         output = {
+            "continue": True,  # Allow processing to continue
+            "suppressOutput": False,  # Show in transcript
             "hookSpecificOutput": {
                 "hookEventName": "UserPromptSubmit",
-                "additionalContext": "",  # Empty context for subsequent prompts
+                "additionalContext": additional_context,
             },
         }
+
         print(json.dumps(output))
+        if hook_logger:
+            hook_logger.log_hook_exit(data, 0, result="context_injected")
         sys.exit(0)
-
-    # Mark that we're injecting context
-    # Ensure transcript_path is a valid string (fallback to empty string if None)
-    session_state.mark_injected(
-        str(transcript_path) if transcript_path is not None else "",
-    )
-
-    # Get project directory from environment
-    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
-
-    # Create ALL tasks for true parallel execution
-    all_tasks = []
-    task_names = []
-
-    # Add consolidated injectors wrapped in asyncio.to_thread for true parallelism
-    if ENABLED_INJECTIONS.get("unified_smart_advisor"):
-        all_tasks.append(asyncio.to_thread(get_smart_recommendations, user_prompt))
-        task_names.append("unified_smart_advisor")
-
-    if ENABLED_INJECTIONS.get("code_intelligence_hub"):
-        all_tasks.append(
-            asyncio.to_thread(create_code_intelligence_injection, user_prompt),
-        )
-        task_names.append("code_intelligence_hub")
-
-    if ENABLED_INJECTIONS.get("system_monitor"):
-        all_tasks.append(
-            asyncio.to_thread(
-                get_system_monitoring_injection,
-                user_prompt,
-                project_dir,
-            ),
-        )
-        task_names.append("system_monitor")
-
-    if ENABLED_INJECTIONS.get("static_content"):
-        all_tasks.append(asyncio.to_thread(get_static_content_injection, user_prompt))
-        task_names.append("static_content")
-    
-    if ENABLED_INJECTIONS.get("context_revival"):
-        all_tasks.append(asyncio.to_thread(get_context_revival_injection, user_prompt, project_dir))
-        task_names.append("context_revival")
-
-    if ENABLED_INJECTIONS.get("mcp"):
-        all_tasks.append(asyncio.to_thread(get_mcp_injection, user_prompt))
-        task_names.append("mcp")
-
-    # Add native async injections
-    if ENABLED_INJECTIONS.get("git"):
-        all_tasks.append(get_git_injection(project_dir))
-        task_names.append("git")
-
-    if ENABLED_INJECTIONS.get("firecrawl"):
-        all_tasks.append(get_firecrawl_injection(user_prompt, project_dir))
-        task_names.append("firecrawl")
-
-    # Execute ALL tasks in parallel and gather results
-    if all_tasks:
-        results = await asyncio.gather(*all_tasks, return_exceptions=True)
-
-        # Create result dictionary mapping task names to results
-        results_dict = {}
-        for i, (name, result) in enumerate(zip(task_names, results)):
-            if isinstance(result, Exception):
-                print(f"Error in {name} injection: {result}", file=sys.stderr)
-                results_dict[name] = ""
-            else:
-                results_dict[name] = result or ""
-    else:
-        results_dict = {}
-
-    # Extract results with defaults for any missing/disabled injections
-    unified_advisor = results_dict.get("unified_smart_advisor", "")
-    code_intelligence = results_dict.get("code_intelligence_hub", "")
-    system_monitor = results_dict.get("system_monitor", "")
-    static_content = results_dict.get("static_content", "")
-    context_revival = results_dict.get("context_revival", "")
-    mcp_recommendations = results_dict.get("mcp", "")
-    git_injection = results_dict.get("git", "")
-    firecrawl_context = results_dict.get("firecrawl", "")
-
-    # Build additional context - combine all injections
-    # Git injection goes early for foundational context, context revival provides historical context
-    raw_context = (
-        f"{git_injection}\n{context_revival}{system_monitor}{firecrawl_context}{unified_advisor}"
-        f"{static_content}{code_intelligence}{mcp_recommendations}"
-    )
-
-    # Optimize context with AI if enabled
-    ai_optimization_enabled = (
-        INJECTION_CIRCUIT_BREAKERS["enhanced_ai_optimizer"]
-        and os.environ.get("CLAUDE_AI_CONTEXT_OPTIMIZATION", "false").lower() == "true"
-    )
-    if ai_optimization_enabled:
-        additional_context = optimize_injection_enhanced_sync(user_prompt, raw_context)
-    else:
-        additional_context = raw_context
-
-    # Return JSON output with additional context
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": additional_context,
-        },
-    }
-
-    print(json.dumps(output))
-    sys.exit(0)
+        
+    except Exception as e:
+        # Log the error
+        if hook_logger:
+            hook_logger.log_error(data, e)
+        # Contract 2.2: Use exit code 2 for blocking errors
+        print(f"Error: Unexpected error in handle_async: {e}", file=sys.stderr)
+        if hook_logger:
+            hook_logger.log_hook_exit(data, 2, result="error")
+        sys.exit(2)
 
 
 def handle(data):
-    """Synchronous wrapper for async handle function."""
+    """
+    Synchronous wrapper for async handle function.
+    
+    Args:
+        data: Validated input data from the hook
+    """
     try:
         # Try to get the current event loop
         asyncio.get_running_loop()
@@ -354,9 +546,29 @@ def handle(data):
     except RuntimeError:
         # No event loop running, safe to create new one
         asyncio.run(handle_async(data))
+    except Exception as e:
+        # Contract 5.2: Handle unexpected errors gracefully
+        print(f"Error: Unexpected error in handle: {e}", file=sys.stderr)
+        sys.exit(1)  # Non-blocking error
 
 
 if __name__ == "__main__":
-    # When called directly, read data from stdin
-    data = json.loads(sys.stdin.read())
-    handle(data)
+    # Contract 4.3: Validate JSON input
+    try:
+        raw_data = sys.stdin.read()
+        data = json.loads(raw_data)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+        sys.exit(1)  # Non-blocking error - let execution continue
+    except Exception as e:
+        print(f"Error: Failed to read input: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Validate input data according to contract
+    validated_data = validate_input_data(data)
+    if validated_data is None:
+        # Error already printed in validate_input_data
+        sys.exit(1)  # Non-blocking error for invalid input
+    
+    # Handle the validated data
+    handle(validated_data)

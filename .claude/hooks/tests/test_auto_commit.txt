@@ -1,3 +1,0 @@
-This is a test file to verify auto-commit functionality.
-Created at: 2025-01-29
-Purpose: Testing Stop.py hook auto-commit feature

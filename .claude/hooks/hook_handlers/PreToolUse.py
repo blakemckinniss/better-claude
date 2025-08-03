@@ -14,6 +14,12 @@ from typing import Any, Dict
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
+
 # Import the global guard
 try:
     from Guard import create_guarded_handler
@@ -37,6 +43,10 @@ except ImportError as e:
 
 def handle_hook(event_data: Dict[str, Any]) -> int:
     """PreToolUse hook handler that returns exit code instead of calling sys.exit."""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(event_data, "PreToolUse")
+    
     try:
         # Extract tool information
         tool_name = event_data.get("tool_name", "")
@@ -44,6 +54,8 @@ def handle_hook(event_data: Dict[str, Any]) -> int:
 
         # Skip if no tool name
         if not tool_name:
+            if hook_logger:
+                hook_logger.log_hook_exit(event_data, 0, "No tool name provided")
             return 0
 
         # Initialize components
@@ -79,12 +91,13 @@ def handle_hook(event_data: Dict[str, Any]) -> int:
 
         # Handle blocking
         if block_reason:
+            if hook_logger:
+                hook_logger.log_decision(event_data, "block", block_reason)
             print(f"❌ {block_reason}", file=sys.stderr)
-            print("\n📝 Note: Hooks can be temporarily disabled in", file=sys.stderr)
-            print(
-                "   /home/devcontainers/better-claude/.claude/hooks/hook_handler.py",
-                file=sys.stderr,
-            )
+            print("📝 Note: Hooks can be temporarily disabled in", file=sys.stderr)
+            print("/home/devcontainers/better-claude/.claude/hooks/hook_handler.py",file=sys.stderr)
+            if hook_logger:
+                hook_logger.log_hook_exit(event_data, 2, result="blocked")
             return 2  # Exit code 2 for blocking
 
         # Show warnings if any
@@ -102,11 +115,18 @@ def handle_hook(event_data: Dict[str, Any]) -> int:
             if output:
                 print(output)
 
+        if hook_logger:
+            hook_logger.log_hook_exit(event_data, 0, result="allowed")
         return 0  # Success
 
     except Exception as e:
+        # Log the error
+        if hook_logger:
+            hook_logger.log_error(event_data, e)
         # Don't fail operations due to hook errors
         print(f"Hook error (operation allowed): {str(e)}", file=sys.stderr)
+        if hook_logger:
+            hook_logger.log_hook_exit(event_data, 0, result="allowed_with_error")
         return 0  # Allow operation on error
 
 

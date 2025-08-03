@@ -1,0 +1,10 @@
+{
+  "session_id": "a8794ecc-b6ac-4d2c-89ef-95b85ac2df3d",
+  "start_time": "2025-08-03T16:38:45.131202",
+  "status": "active",
+  "counters": {
+    "prompts": 0,
+    "tools": 0,
+    "errors": 0
+  }
+}

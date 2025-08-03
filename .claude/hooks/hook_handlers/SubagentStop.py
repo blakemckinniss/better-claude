@@ -9,9 +9,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from UserPromptSubmit.session_state import SessionState
 
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
+
 
 def handle(data):
     """Handle SubagentStop hook events"""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(data, "SubagentStop")
+    
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Log the subagent stop
@@ -29,5 +39,10 @@ def handle(data):
         print("Marked for context injection on next prompt after subagent completion", file=sys.stderr)
     except Exception as e:
         print(f"Error marking for injection: {e}", file=sys.stderr)
+        if hook_logger:
+            hook_logger.log_error(data, e)
 
+    # Log successful exit
+    if hook_logger:
+        hook_logger.log_hook_exit(data, 0, result="success")
     sys.exit(0)

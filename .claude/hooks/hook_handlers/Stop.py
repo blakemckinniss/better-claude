@@ -8,9 +8,27 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
+
+# Import session monitor
+try:
+    from session_monitor import get_session_monitor
+    HAS_SESSION_MONITOR = True
+except ImportError:
+    HAS_SESSION_MONITOR = False
+    get_session_monitor = None
+
 
 def handle(data):
     """Handle Stop hook events."""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(data, "Stop")
+    
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Debug: Print received data
@@ -267,5 +285,39 @@ def handle(data):
     except Exception as e:
         print(f"Error during auto-commit: {str(e)}", file=sys.stderr)
         # Don't fail the hook due to auto-commit errors
+        if hook_logger:
+            hook_logger.log_error(data, e)
 
+    # Finalize session monitor
+    if HAS_SESSION_MONITOR and get_session_monitor:
+        try:
+            session_id = data.get("session_id", "unknown")
+            if session_id != "unknown":
+                monitor = get_session_monitor(session_id)
+                
+                # Log the last Claude response if we have it
+                if "last_claude_message" in locals() and last_claude_message and "text_content" in locals() and text_content:
+                    monitor.log_response(text_content, {
+                        "source": "final_response",
+                        "timestamp": timestamp
+                    })
+                
+                # Finalize the session
+                status = "completed"
+                if data.get("error"):
+                    status = "error"
+                elif data.get("cancelled"):
+                    status = "cancelled"
+                
+                monitor.finalize(status)
+                print(f"Session monitor finalized for {session_id[:8]}", file=sys.stderr)
+        except Exception as e:
+            print(f"Error finalizing session monitor: {e}", file=sys.stderr)
+            if os.environ.get("DEBUG_HOOKS"):
+                import traceback
+                traceback.print_exc()
+
+    # Log successful exit
+    if hook_logger:
+        hook_logger.log_hook_exit(data, 0, result="success")
     sys.exit(0)

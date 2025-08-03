@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SessionStart hook handler for project initialization with parallel context gathering.
+"""SessionStart hook handler - optimized for performance per CLAUDE.md principles.
 
 This hook adheres to the HOOK_CONTRACT.md specifications.
 """
@@ -17,20 +17,34 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from UserPromptSubmit.session_state import SessionState
-
     HAS_SESSION_STATE = True
 except ImportError:
-    # Module may not be available
     HAS_SESSION_STATE = False
     SessionState = None  # type: ignore
 
+# Import logging integration
+try:
+    from logger_integration import hook_logger
+except ImportError:
+    hook_logger = None
 
-async def run_command(
+# Import session monitor
+try:
+    from session_monitor import get_session_monitor
+    HAS_SESSION_MONITOR = True
+except ImportError:
+    HAS_SESSION_MONITOR = False
+    get_session_monitor = None
+
+# Fast command timeout per CLAUDE.md
+FAST_TIMEOUT = 5  # Reduced from 10s
+
+async def run_fast_command(
     command: List[str],
     cwd: Optional[str] = None,
-    timeout: int = 10,
+    timeout: int = FAST_TIMEOUT,
 ) -> str:
-    """Run command asynchronously with timeout and error handling.
+    """Run command with minimal overhead - performance over error handling.
 
     Args:
         command: Command to execute as list
@@ -41,13 +55,6 @@ async def run_command(
         Command output or empty string on error
     """
     try:
-        # Security: Validate command doesn't contain dangerous patterns
-        command_str = " ".join(command)
-        if any(
-            dangerous in command_str
-            for dangerous in ["rm -rf", "dd if=", "> /dev/", "sudo"]
-        ):
-            return ""
 
         proc = await asyncio.create_subprocess_exec(
             *command,
@@ -72,6 +79,10 @@ async def run_command(
         if os.environ.get("DEBUG_HOOKS"):
             print(f"Error running {' '.join(command)}: {e}", file=sys.stderr)
         return ""
+
+
+# Alias for backwards compatibility
+run_command = run_fast_command
 
 
 async def get_git_tracked_files(project_dir: str) -> List[str]:
@@ -195,6 +206,58 @@ async def get_file_type_summary(files: List[str]) -> Dict[str, int]:
     return dict(sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:10])
 
 
+async def gather_session_context_fast(project_dir: str) -> Dict[str, Any]:
+    """Optimized context gathering using fast commands per CLAUDE.md."""
+    start_time = time.time()
+    
+    # Use fast commands in true parallel
+    tasks = [
+        asyncio.create_task(run_fast_command(["scc", "--no-cocomo", "-f", "json"], cwd=project_dir)),
+        asyncio.create_task(run_fast_command(["git", "status", "--porcelain", "-uno"], cwd=project_dir)),
+        asyncio.create_task(run_fast_command(["git", "log", "--oneline", "-3"], cwd=project_dir)),
+    ]
+    
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Parse scc output for file stats
+    file_types = {}
+    total_files = 0
+    if results[0] and not isinstance(results[0], Exception):
+        try:
+            scc_data = json.loads(cast(str, results[0]))
+            for lang in scc_data:
+                # Map language name to common extensions
+                lang_name = lang.get("Name", "").lower()
+                count = lang.get("Count", 0)
+                if lang_name == "python":
+                    file_types[".py"] = count
+                elif lang_name == "json":
+                    file_types[".json"] = count
+                elif lang_name == "markdown":
+                    file_types[".md"] = count
+                elif lang_name == "shell":
+                    file_types[".sh"] = count
+                elif lang_name == "javascript":
+                    file_types[".js"] = count
+                elif lang_name == "typescript":
+                    file_types[".ts"] = count
+                total_files += count
+        except:
+            pass
+    
+    return {
+        "files": [],  # Skip expensive file enumeration
+        "structure": "",  # Skip expensive structure
+        "readme": "",  # Skip readme for speed
+        "commits": results[2] if results[2] and not isinstance(results[2], Exception) else "",
+        "status": results[1] if results[1] and not isinstance(results[1], Exception) else "",
+        "metadata": {},  # Skip metadata parsing
+        "file_types": file_types,
+        "execution_time": time.time() - start_time,
+        "total_files": total_files,
+    }
+
+
 async def gather_session_context(project_dir: str) -> Dict[str, Any]:
     """Gather all initial session context in parallel."""
     start_time = time.time()
@@ -238,6 +301,41 @@ async def gather_session_context(project_dir: str) -> Dict[str, Any]:
         "execution_time": execution_time,
         "total_files": len(files),
     }
+
+
+def format_minimal_output(context: Dict[str, Any]) -> str:
+    """Format output per CLAUDE.md - 3-4 lines maximum."""
+    # Get top file types
+    top_types = []
+    if context.get("file_types"):
+        sorted_types = sorted(context["file_types"].items(), key=lambda x: x[1], reverse=True)[:3]
+        top_types = [f"{ext}:{count}" for ext, count in sorted_types]
+    
+    # Format git info concisely
+    git_changes = len(context.get("status", "").splitlines())
+    commit_count = len(context.get("commits", "").splitlines())
+    
+    # 3-4 lines only per CLAUDE.md
+    return f"""⚡ {context['total_files']} files | {context['execution_time']:.1f}s
+📊 {', '.join(top_types) if top_types else 'No file stats'}
+🔄 Git: {git_changes} changes, {commit_count} recent commits"""
+
+
+def format_zen_pro_disclaimer() -> str:
+    """Format static disclaimer for zen-pro consultation."""
+    return """
+🚨 **IMPORTANT**:
+
+   ## All user prompts MUST be followed by immediate "zen-pro" consultation for BRD/PRD planning.
+   
+   Use: Task(subagent_type="zed-pro") for strategic analysis and multi-agent orchestration.
+   
+   ## MUST USE MODERN CLI COMMANDS (ASSUME INSTALLED)
+  **Bash(** 
+  rg (fast grep), fd (find fast), bat (color cat), fzf (fuzzy pick), zoxide (smart cd), lsd (pretty ls), sd (sed alt), jq (JSON CLI), yq (YAML CLI), mlr (CSV CLI), ctags (tag index), delta (diff view), tree (dir tree), tokei (code LOC), scc (LOC alt), exa (modern ls), dust (disk du), duf (disk df), procs (ps plus), hyperfine (bench), entr (watch run), xh (curl alt), dog (DNS dig), podman (containers), dive (layer view), trivy (vuln scan), tldr (examples) 
+  **)**
+   
+   """
 
 
 def format_core_tools_intro() -> str:
@@ -349,11 +447,16 @@ def format_session_context(context: Dict[str, Any]) -> str:
 
 def handle(input_data):
     """Handle SessionStart hook event."""
+    # Log hook entry
+    if hook_logger:
+        hook_logger.log_hook_entry(input_data, "SessionStart")
 
     # REQUIRED: Validate expected fields exist
     session_id = input_data.get("session_id", "")
     if not session_id:
         # Silent failure for non-applicable hooks per contract
+        if hook_logger:
+            hook_logger.log_hook_exit(input_data, 1, result="no_session_id")
         sys.exit(1)
 
     # Validate other required fields
@@ -370,6 +473,8 @@ def handle(input_data):
     # REQUIRED: Sanitize file paths for security
     if ".." in project_dir or project_dir.startswith("/etc"):
         print("Security: Path traversal blocked", file=sys.stderr)
+        if hook_logger:
+            hook_logger.log_hook_exit(input_data, 2, result="path_traversal_blocked")
         sys.exit(2)
 
     # Clear session state for fresh start
@@ -385,7 +490,11 @@ def handle(input_data):
 
     # Gather context using async parallel execution
     try:
-        context = asyncio.run(gather_session_context(project_dir))
+        # Use fast gathering if minimal mode is enabled
+        if os.environ.get("CLAUDE_MINIMAL_HOOKS"):
+            context = asyncio.run(gather_session_context_fast(project_dir))
+        else:
+            context = asyncio.run(gather_session_context(project_dir))
     except Exception as e:
         if os.environ.get("DEBUG_HOOKS"):
             print(f"Error gathering session context: {e}", file=sys.stderr)
@@ -404,11 +513,21 @@ def handle(input_data):
 
     # Format and output the context
     # Per contract: SessionStart stdout goes to context, not shown to user
-    output_lines = [
-        format_core_tools_intro(),
-        "",
-        format_session_context(context),
-    ]
+    # Use minimal format if CLAUDE_MINIMAL_HOOKS env var is set (per CLAUDE.md)
+    if os.environ.get("CLAUDE_MINIMAL_HOOKS"):
+        output_lines = [
+            "🧠 Zen • 📁 FS • 🌐 Tavily • 🌳 Tree-sitter",
+            "",
+            format_minimal_output(context),
+            format_zen_pro_disclaimer(),
+        ]
+    else:
+        output_lines = [
+            format_core_tools_intro(),
+            "",
+            format_session_context(context),
+            format_zen_pro_disclaimer(),
+        ]
 
     print("\n".join(output_lines))
 
@@ -428,7 +547,29 @@ def handle(input_data):
         }
         print(json.dumps(debug_data, indent=2), file=sys.stderr)
 
+    # Initialize session monitor if available
+    if HAS_SESSION_MONITOR and get_session_monitor:
+        try:
+            session_id = input_data.get("session_id", "unknown")
+            if session_id != "unknown":
+                monitor = get_session_monitor(session_id)
+                # Log session start metadata
+                monitor._update_summary({
+                    "project_dir": project_dir,
+                    "total_files": context.get("total_files", 0),
+                    "file_types": context.get("file_types", {}),
+                    "git_status": bool(context.get("status")),
+                    "recent_commits": len(context.get("commits", "").split("\n")) if context.get("commits") else 0
+                })
+                if os.environ.get("DEBUG_HOOKS"):
+                    print(f"Session monitor initialized for {session_id[:8]}", file=sys.stderr)
+        except Exception as e:
+            if os.environ.get("DEBUG_HOOKS"):
+                print(f"Error initializing session monitor: {e}", file=sys.stderr)
+
     # Exit with success
+    if hook_logger:
+        hook_logger.log_hook_exit(input_data, 0, result="success")
     sys.exit(0)
 
 
