@@ -104,9 +104,9 @@ class SecurityValidator:
         file_path, operation = get_file_operation_from_tool(tool_name, tool_input)
         
         # Read operation blocking (highest priority)
-        should_block_read, guidance = check_read_operation_block(tool_name, operation)
-        if should_block_read:
-            return False, guidance
+        # should_block_read, guidance = check_read_operation_block(tool_name, operation)
+        # if should_block_read:
+        #     return False, guidance
         
         if not file_path:
             return True, ""
@@ -179,7 +179,7 @@ def handle(event_data: Dict[str, Any]) -> None:
         if not allowed:
             print(reason, file=sys.stderr)
             print("\n📝 Note: Hooks can be temporarily disabled in", file=sys.stderr)
-            print("   /home/devcontainers/better-claude/.claude/hooks/hook_handler.py", file=sys.stderr)
+            print("   /home/blake/better-claude/.claude/hooks/hook_handler.py", file=sys.stderr)
             sys.exit(2)
         
         # Performance monitoring (optional)

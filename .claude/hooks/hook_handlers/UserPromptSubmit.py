@@ -96,99 +96,47 @@ ENABLED_INJECTIONS = {k: v for k, v in INJECTION_CIRCUIT_BREAKERS.items() if v}
 _transcript_cache: Dict[str, Tuple[bytes, float]] = {}
 CACHE_TTL = 5.0  # 5 seconds TTL for transcript cache
 
-# Security: Sensitive file patterns to skip
-SENSITIVE_PATTERNS = [
-    ".env",
-    ".git/",
-    ".ssh/",
-    "id_rsa",
-    "id_dsa",
-    "id_ecdsa",
-    "id_ed25519",
-    ".pem",
-    ".key",
-    ".cert",
-    ".crt",
-    "password",
-    "secret",
-    "token",
-    ".aws/",
-    ".azure/",
-    ".gcloud/",
-    "credentials",
-]
-
-
-def is_path_secure(path: str) -> bool:
-    """Validate that a path is secure and doesn't contain path traversal or sensitive
-    files.
-
-    Args:
-        path: The file path to validate
-
-    Returns:
-        bool: True if path is secure, False otherwise
-    """
-    if not path:
-        return True  # Empty path is safe
-
-    # Check for path traversal
-    if ".." in path:
-        return False
-
-    # Check for sensitive files
-    path_lower = path.lower()
-    for pattern in SENSITIVE_PATTERNS:
-        if pattern in path_lower:
-            return False
-
-    # Check for system directories
-    if path.startswith("/etc") or path.startswith("/sys") or path.startswith("/proc"):
-        return False
-
-    return True
+# Import security validator
+from UserPromptSubmit.security_validator import (get_security_validator,
+                                                 scrub_credentials)
+from UserPromptSubmit.security_validator import \
+    validate_input_data as secure_validate_input_data
+from UserPromptSubmit.security_validator import validate_path_security
 
 
 def validate_input_data(data: Dict) -> Optional[Dict]:
-    """Validate input data according to contract requirements.
+    """Validate input data with comprehensive security checks.
 
     Args:
         data: Input data from stdin
 
     Returns:
-        Dict: Validated data or None if validation fails
+        Dict: Validated and sanitized data or None if validation fails
     """
-    # Required fields according to contract section 3.1
-    required_fields = ["session_id", "transcript_path", "cwd", "hook_event_name"]
-
-    for field in required_fields:
-        if field not in data:
-            print(f"Error: Missing required field '{field}'", file=sys.stderr)
+    try:
+        # Get project directory for security validation
+        project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+        
+        # Use comprehensive security validation
+        is_valid, sanitized_data, error_msg = secure_validate_input_data(data, project_dir)
+        
+        if not is_valid:
+            # Log security event
+            validator = get_security_validator(project_dir)
+            validator.log_security_event("input_validation_failed", {
+                "error": error_msg,
+                "data_keys": list(data.keys()) if isinstance(data, dict) else "invalid_data_type"
+            })
+            print(f"Security: {error_msg}", file=sys.stderr)
             return None
-
-    # Validate hook event name
-    if data["hook_event_name"] != "UserPromptSubmit":
-        print(
-            f"Error: Invalid hook event '{data['hook_event_name']}', expected 'UserPromptSubmit'",
-            file=sys.stderr,
-        )
+            
+        return sanitized_data
+        
+    except Exception as e:
+        # Create secure error message without credential exposure
+        secure_error = scrub_credentials(str(e))
+        print(f"Error: Input validation failed: {secure_error}", file=sys.stderr)
         return None
-
-    # Validate transcript path security
-    transcript_path = data.get("transcript_path", "")
-    if transcript_path and not is_path_secure(transcript_path):
-        print(
-            f"Security: Blocked access to sensitive path: {transcript_path}",
-            file=sys.stderr,
-        )
-        return None
-
-    # UserPromptSubmit specific: validate prompt field
-    if "prompt" not in data:
-        print("Error: Missing 'prompt' field for UserPromptSubmit", file=sys.stderr)
-        return None
-
-    return data
 
 
 def perf_monitor(func):
@@ -208,8 +156,10 @@ def perf_monitor(func):
             return result
         except Exception as e:
             duration = time.perf_counter() - start_time
+            # Scrub credentials from error messages
+            secure_error = scrub_credentials(str(e))
             print(
-                f"[PERF] Failed {func.__name__} after {duration:.3f}s: {e}",
+                f"[PERF] Failed {func.__name__} after {duration:.3f}s: {secure_error}",
                 file=sys.stderr,
             )
             raise
@@ -228,8 +178,10 @@ def perf_monitor(func):
             return result
         except Exception as e:
             duration = time.perf_counter() - start_time
+            # Scrub credentials from error messages
+            secure_error = scrub_credentials(str(e))
             print(
-                f"[PERF] Failed {func.__name__} after {duration:.3f}s: {e}",
+                f"[PERF] Failed {func.__name__} after {duration:.3f}s: {secure_error}",
                 file=sys.stderr,
             )
             raise
@@ -265,20 +217,19 @@ load_env_file()
 
 
 # Import consolidated injectors and remaining standalone injectors
-from UserPromptSubmit.ai_context_optimizer_optimized import (
-    optimize_injection_sync,  # noqa: E402
-)
-from UserPromptSubmit.context_revival import get_context_revival_injection  # noqa: E402
-from UserPromptSubmit.firecrawl_injection import get_firecrawl_injection  # noqa: E402
+from UserPromptSubmit.ai_context_optimizer_optimized import \
+    optimize_injection_sync  # noqa: E402
+from UserPromptSubmit.context_revival import \
+    get_context_revival_injection  # noqa: E402
+from UserPromptSubmit.firecrawl_injection import \
+    get_firecrawl_injection  # noqa: E402
 from UserPromptSubmit.git_injection import get_git_injection  # noqa: E402
 from UserPromptSubmit.mcp_injector import get_mcp_injection  # noqa: E402
 from UserPromptSubmit.session_state import SessionState  # noqa: E402
-from UserPromptSubmit.system_monitor import (
-    get_system_monitoring_injection,  # noqa: E402
-)
-from UserPromptSubmit.unified_smart_advisor import (
-    get_smart_recommendations,  # noqa: E402
-)
+from UserPromptSubmit.system_monitor import \
+    get_system_monitoring_injection  # noqa: E402
+from UserPromptSubmit.unified_smart_advisor import \
+    get_smart_recommendations  # noqa: E402
 
 
 def read_transcript_cached(transcript_path: str) -> Optional[bytes]:
@@ -351,7 +302,8 @@ def should_inject_context(data, session_state=None):
 
     except Exception as e:
         # Contract 2.2: Use exit code 2 for blocking errors
-        print(f"Error: Failed to check injection status: {e}", file=sys.stderr)
+        secure_error = scrub_credentials(str(e))
+        print(f"Error: Failed to check injection status: {secure_error}", file=sys.stderr)
         sys.exit(2)
 
 
@@ -368,7 +320,8 @@ async def handle_async(data):
         except Exception as e:
             if hook_logger:
                 hook_logger.log_error(data, e)
-            print(f"Error: Failed to extract user prompt: {e}", file=sys.stderr)
+            secure_error = scrub_credentials(str(e))
+            print(f"Error: Failed to extract user prompt: {secure_error}", file=sys.stderr)
             sys.exit(1)
 
         # Log user prompt to session monitor
@@ -387,7 +340,8 @@ async def handle_async(data):
                     )
             except Exception as e:
                 if os.environ.get("DEBUG_HOOKS"):
-                    print(f"Error logging to session monitor: {e}", file=sys.stderr)
+                    secure_error = scrub_credentials(str(e))
+                    print(f"Error logging to session monitor: {secure_error}", file=sys.stderr)
 
         # Initialize session state once
         session_state = SessionState()
@@ -476,8 +430,9 @@ async def handle_async(data):
             for i, (name, result) in enumerate(zip(task_names, results)):
                 if isinstance(result, Exception):
                     # Contract 2.2: Use exit code 2 for blocking errors
+                    secure_error = scrub_credentials(str(result))
                     print(
-                        f"Error: Failed in {name} injection: {result}",
+                        f"Error: Failed in {name} injection: {secure_error}",
                         file=sys.stderr,
                     )
                     sys.exit(2)
@@ -579,7 +534,8 @@ async def handle_async(data):
                 additional_context = optimize_injection_sync(user_prompt, raw_context)
             except Exception as e:
                 # Contract 2.2: Use exit code 2 for blocking errors
-                print(f"Error: AI optimization failed: {e}", file=sys.stderr)
+                secure_error = scrub_credentials(str(e))
+                print(f"Error: AI optimization failed: {secure_error}", file=sys.stderr)
                 sys.exit(2)
         else:
             # If circuit breaker is disabled, just use raw context (should not happen in production)
@@ -608,11 +564,12 @@ async def handle_async(data):
         sys.exit(0)
 
     except Exception as e:
-        # Log the error
+        # Log the error with credential scrubbing
         if hook_logger:
             hook_logger.log_error(data, e)
         # Contract 2.2: Use exit code 2 for blocking errors
-        print(f"Error: Unexpected error in handle_async: {e}", file=sys.stderr)
+        secure_error = scrub_credentials(str(e))
+        print(f"Error: Unexpected error in handle_async: {secure_error}", file=sys.stderr)
         if hook_logger:
             hook_logger.log_hook_exit(data, 2, result="error")
         sys.exit(2)
@@ -641,7 +598,8 @@ def handle(data):
         asyncio.run(handle_async(data))
     except Exception as e:
         # Contract 5.2: Handle unexpected errors gracefully
-        print(f"Error: Unexpected error in handle: {e}", file=sys.stderr)
+        secure_error = scrub_credentials(str(e))
+        print(f"Error: Unexpected error in handle: {secure_error}", file=sys.stderr)
         sys.exit(1)  # Non-blocking error
 
 
@@ -656,17 +614,20 @@ if __name__ == "__main__":
                 file=sys.stderr,
             )
     except Exception as e:
-        print(f"Warning: Configuration validation error: {e}", file=sys.stderr)
+        secure_error = scrub_credentials(str(e))
+        print(f"Warning: Configuration validation error: {secure_error}", file=sys.stderr)
 
     # Contract 4.3: Validate JSON input
     try:
         raw_data = sys.stdin.read()
         data = json.loads(raw_data)
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+        secure_error = scrub_credentials(str(e))
+        print(f"Error: Invalid JSON input: {secure_error}", file=sys.stderr)
         sys.exit(1)  # Non-blocking error - let execution continue
     except Exception as e:
-        print(f"Error: Failed to read input: {e}", file=sys.stderr)
+        secure_error = scrub_credentials(str(e))
+        print(f"Error: Failed to read input: {secure_error}", file=sys.stderr)
         sys.exit(1)
 
     # Validate input data according to contract

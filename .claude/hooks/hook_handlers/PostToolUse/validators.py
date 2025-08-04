@@ -617,7 +617,7 @@ def print_validation_report(issues: List[ValidationIssue], file_path: str) -> No
         print("🛑 BLOCKING: These critical issues must be fixed!", file=sys.stderr)
         print("   Claude will be notified immediately.", file=sys.stderr)
         print("   📝 Note: Hooks can be temporarily disabled in", file=sys.stderr)
-        print("      /home/devcontainers/better-claude/.claude/hooks/hook_handler.py\n", file=sys.stderr)
+        print("      /home/blake/better-claude/.claude/hooks/hook_handler.py\n", file=sys.stderr)
 
     if warnings and not critical_issues:
         print(f"⚠️  {len(warnings)} warnings detected but not critical", file=sys.stderr)

@@ -1,48 +1,4 @@
 {
-  "demo-session-001": {
-    "subagent_delegation": 1754249329.4969196,
-    "todo_pattern": 1754249329.9389675
-  },
-  "demo_session": {
-    "subagent_delegation": 1754249516.1365716,
-    "complex_bash": 1754249516.1372054
-  },
-  "normal_session": {
-    "subagent_delegation": 1754249516.1374292
-  },
-  "test-session-fix": {
-    "subagent_delegation": 1754249545.2371695
-  },
-  "test-5fb9969a": {
-    "subagent_delegation": 1754249703.0532913
-  },
-  "test-f48b4af7": {
-    "subagent_delegation": 1754249703.1933374
-  },
-  "test-d51f032e": {
-    "subagent_delegation": 1754249703.3362
-  },
-  "test-debug-session": {
-    "todo_pattern": 1754250385.1786497
-  },
-  "fresh-test-session": {
-    "todo_pattern": 1754250395.1240304
-  },
-  "test-session-todowrite-001": {
-    "todo_pattern": 1754251156.6168041
-  },
-  "test-session-once-001": {
-    "todo_pattern": 1754251156.7547677
-  },
-  "test-direct-session-001": {
-    "todo_pattern": 1754251175.273015
-  },
-  "test-simple-session-001": {
-    "todo_pattern": 1754251200.1974154
-  },
-  "c0ccd9d5-6111-4f9d-b70b-9e38e7f7c911": {
-    "todo_pattern": 1754251793.1962974
-  },
   "2b7cf9fc-52b3-4bee-bec3-c3b6a1e3b3fe": {
     "todo_pattern": 1754254328.4429884
   },
@@ -171,5 +127,69 @@
     "routing_Bash_171": 1754310394.0739803,
     "routing_Bash_645": 1754310401.0246463,
     "routing_Bash_561": 1754311168.6059134
+  },
+  "72c2a3a0-5b01-40ba-9b15-7a1651dfe433": {
+    "routing_Bash_193": 1754334630.085631,
+    "pattern_Bash": 1754334630.0866315,
+    "performance_Bash": 1754334630.087805,
+    "recommendation_delegation": 1754334630.0896056,
+    "recommendation_tool_upgrade": 1754334631.1154752,
+    "routing_Bash_897": 1754334631.347967,
+    "recommendation_efficiency": 1754334639.827174,
+    "routing_Bash_627": 1754334662.9870133,
+    "routing_Grep_464": 1754334664.3414712
+  },
+  "dbeb57dc-4829-486f-93c1-f381c80331cb": {
+    "routing_Grep_659": 1754334955.1200519,
+    "routing_Grep_748": 1754334959.6157892,
+    "routing_Grep_981": 1754334963.854862,
+    "recommendation_efficiency": 1754334967.3105729,
+    "routing_Grep_799": 1754334972.4655313,
+    "routing_Grep_347": 1754334978.329532,
+    "todo_pattern": 1754335209.7305703,
+    "routing_Edit_686": 1754335242.851645,
+    "pattern_Edit": 1754335242.8524067,
+    "recommendation_context": 1754335242.853574,
+    "routing_Edit_973": 1754335251.7642736,
+    "routing_Edit_89": 1754335260.127049,
+    "routing_Grep_254": 1754335331.68588,
+    "routing_Bash_395": 1754335337.5577977,
+    "pattern_Bash": 1754335337.558378,
+    "recommendation_delegation": 1754335337.559336,
+    "performance_Bash": 1754335364.360002,
+    "routing_Grep_13": 1754336049.9718459,
+    "routing_Grep_706": 1754336050.0158892,
+    "routing_Grep_798": 1754336054.4938095,
+    "pattern_MultiEdit": 1754336086.1049395,
+    "routing_Edit_821": 1754336120.2391593,
+    "routing_Edit_884": 1754336135.8112009,
+    "routing_Edit_556": 1754336144.4179046,
+    "routing_Edit_758": 1754336151.6053774,
+    "pattern_Write": 1754336180.9515185,
+    "routing_Edit_237": 1754336189.2770169,
+    "routing_Grep_496": 1754336199.768904,
+    "routing_Edit_127": 1754336208.7109709,
+    "routing_Edit_407": 1754336818.2164917,
+    "routing_Edit_943": 1754336883.101322,
+    "routing_Edit_706": 1754337151.5616002,
+    "routing_Edit_675": 1754339937.4312208,
+    "routing_Edit_773": 1754339961.6503909,
+    "routing_Edit_875": 1754339983.5304492,
+    "routing_Edit_593": 1754340003.1957066,
+    "routing_Edit_12": 1754340127.8878434,
+    "routing_Edit_569": 1754340139.494576,
+    "routing_Edit_623": 1754340169.066468,
+    "routing_Edit_431": 1754340201.3202631,
+    "routing_Edit_709": 1754340218.4110544,
+    "routing_Edit_81": 1754340510.5285394,
+    "routing_Edit_264": 1754340577.3849185,
+    "routing_Edit_112": 1754340597.880225,
+    "routing_Edit_397": 1754340631.7746868,
+    "routing_Edit_111": 1754340683.1319513,
+    "routing_Edit_577": 1754340697.9266756,
+    "routing_Edit_609": 1754340712.0767784,
+    "routing_Bash_235": 1754340923.4966466,
+    "routing_Bash_582": 1754340930.7254367,
+    "routing_Bash_409": 1754340970.5751805
   }
 }

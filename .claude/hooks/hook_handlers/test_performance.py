@@ -17,7 +17,7 @@ def test_performance():
             'name': 'Simple Read Operation',
             'event': {
                 'tool_name': 'Read',
-                'tool_input': {'file_path': '/home/devcontainers/better-claude/README.md'},
+                'tool_input': {'file_path': '/home/blake/better-claude/README.md'},
             },
         },
         {

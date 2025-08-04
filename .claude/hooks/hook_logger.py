@@ -38,7 +38,7 @@ class HookLogger:
     MAX_TOTAL_SIZE_MB = 500  # Maximum total log size in MB
     CLEANUP_INTERVAL_HOURS = 6  # Run cleanup every N hours
     
-    def __init__(self, base_dir: str = "/home/devcontainers/better-claude/.claude/logs"):
+    def __init__(self, base_dir: str = "/home/blake/better-claude/.claude/logs"):
         """Initialize the comprehensive logger."""
         self.base_dir = Path(base_dir)
         self.hooks_dir = self.base_dir / "hooks"

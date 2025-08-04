@@ -34,8 +34,8 @@ class CircuitBreakerConfig:
     # Protected files (exact match required)
     protected_files: List[str] = field(
         default_factory=lambda: [
-            "/home/devcontainers/better-claude/.claude/settings.json",
-            "/home/devcontainers/better-claude/.claude/hooks/hook_handler.py",
+            "/home/blake/better-claude/.claude/settings.json",
+            "/home/blake/better-claude/.claude/hooks/hook_handler.py",
         ],
     )
 
@@ -115,8 +115,8 @@ class PreToolUseConfig:
     import_warning_threshold: int = 5  # Warn when file is imported by more than N files
 
     # Directory suggestions
-    tests_directory: str = "/home/devcontainers/better-claude/.claude/hooks/tests"
-    docs_directory: str = "/home/devcontainers/better-claude/.claude/hooks/docs"
+    tests_directory: str = "/home/blake/better-claude/.claude/hooks/tests"
+    docs_directory: str = "/home/blake/better-claude/.claude/hooks/docs"
 
     # Naming patterns to block
     bad_naming_patterns: List[str] = field(

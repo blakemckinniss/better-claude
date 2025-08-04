@@ -38,7 +38,7 @@ def handle(data):
     # Clean up hook_logs subfolders, keeping only the latest 5 files
     project_root = os.environ.get(
         "CLAUDE_PROJECT_DIR",
-        "/home/devcontainers/better-claude",
+        "/home/blake/better-claude",
     )
     hook_logs_dir = os.path.join(project_root, ".claude/hooks/hook_logs")
     if os.path.exists(hook_logs_dir):

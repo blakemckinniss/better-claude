@@ -143,7 +143,7 @@ def handle_file_modification(tool_name: str, tool_input: Dict[str, Any]) -> int:
                     file=sys.stderr,
                 )
                 print(
-                    "      /home/devcontainers/better-claude/.claude/hooks/hook_handler.py\n",
+                    "      /home/blake/better-claude/.claude/hooks/hook_handler.py\n",
                     file=sys.stderr,
                 )
                 has_critical_issues = True

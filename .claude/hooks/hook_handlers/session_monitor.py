@@ -118,7 +118,7 @@ class SessionMonitor:
 
         self.session_id = session_id
         self.short_id = session_id[:8]
-        self.base_dir = Path("/home/devcontainers/better-claude/.claude/logs/session_monitor")
+        self.base_dir = Path("/home/blake/better-claude/.claude/logs/session_monitor")
         self.session_dir = self.base_dir / self.short_id
         self.interactions_dir = self.session_dir / "interactions"
 

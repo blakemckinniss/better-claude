@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 import aiohttp
 
 from .config import get_config
+from .token_optimizer import optimize_for_tokens
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stderr))
@@ -122,28 +123,42 @@ class PromptBuilder:
         task_type: str,
         meta_analyzer: MetaAnalyzer,
     ) -> str:
-        """Create focused prompt without redundant context."""
+        """Create structured prompt for comprehensive AI analysis."""
 
-        # Create compact meta
-        meta_json = meta_analyzer.create_compact_meta(
-            user_prompt,
-            detected_elements,
-            task_type,
-        )
-
-        # Build focused context summary
-        context_summary = []
+        # Build prioritized context sections
+        critical_items = []
+        important_items = []
+        
+        # Prioritize error-related and git context
+        if "errors" in detected_elements:
+            critical_items.extend(detected_elements["errors"][:3])
+        if "git" in detected_elements:
+            important_items.extend(detected_elements["git"][:2])
+            
+        # Add other elements as important/relevant
         for element_type, items in detected_elements.items():
-            if items:
-                context_summary.append(f"{element_type}: {', '.join(items[:2])}")
+            if element_type not in ["errors", "git"] and items:
+                important_items.extend(items[:2])
 
-        context_str = " | ".join(context_summary) if context_summary else "general"
+        # Create structured prompt for AI analysis
+        enhanced_prompt = f"""USER REQUEST: {user_prompt}
 
-        enhanced_prompt = f"""Task: {user_prompt}
-Context: {context_str}
-Meta: {meta_json}
+TASK CATEGORY: {task_type}
 
-Provide concise, actionable response focusing on the specific task."""
+AVAILABLE CONTEXT:
+Critical Elements: {critical_items if critical_items else ["none"]}
+Important Elements: {important_items if important_items else ["general context"]}
+
+RAW CONTEXT SAMPLE:
+{raw_context[:1000]}...
+
+ANALYSIS REQUIRED:
+1. Parse the user request intent and technical requirements
+2. Prioritize the available context elements by relevance
+3. Identify optimal execution strategy and tools
+4. Create enhanced prompt with structured format
+
+Please provide your analysis in the specified JSON format followed by the enhanced prompt."""
 
         return enhanced_prompt
 
@@ -156,7 +171,7 @@ class APIClient:
         self.system_prompt = system_prompt
 
     async def make_request(self, user_message: str) -> Optional[str]:
-        """Make API request and return response content."""
+        """Make API request and return enhanced prompt content."""
         if not self.config.api_key:
             logger.warning("No API key")
             return None
@@ -188,7 +203,10 @@ class APIClient:
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
-                        return result["choices"][0]["message"]["content"]
+                        raw_response = result["choices"][0]["message"]["content"]
+                        
+                        # Extract enhanced prompt from structured response
+                        return self._extract_enhanced_prompt(raw_response)
                     else:
                         logger.error(f"API error: {response.status}")
                         return None
@@ -196,23 +214,113 @@ class APIClient:
             except Exception as e:
                 logger.error(f"API error: {e}")
                 return None
+    
+    def _extract_enhanced_prompt(self, raw_response: str) -> str:
+        """Extract the enhanced prompt from AI response."""
+        try:
+            # Look for "ENHANCED REQUEST:" marker
+            if "ENHANCED REQUEST:" in raw_response:
+                enhanced_section = raw_response.split("ENHANCED REQUEST:", 1)[1].strip()
+                return enhanced_section
+            
+            # Fallback: look for structured content after JSON
+            lines = raw_response.split('\n')
+            json_ended = False
+            enhanced_lines = []
+            
+            for line in lines:
+                if json_ended:
+                    enhanced_lines.append(line)
+                elif line.strip() == '}' and len(enhanced_lines) == 0:
+                    json_ended = True
+                elif json_ended == False and line.strip() and not line.startswith('{') and not line.startswith('"'):
+                    enhanced_lines.append(line)
+            
+            if enhanced_lines:
+                return '\n'.join(enhanced_lines).strip()
+                
+            # Last resort: return full response
+            return raw_response
+            
+        except Exception as e:
+            logger.warning(f"Could not extract enhanced prompt: {e}")
+            return raw_response
 
 
 class OptimizedAIContextOptimizer:
     """Main orchestrator following single responsibility principle."""
 
     def _get_system_prompt(self) -> str:
-        """Get system prompt for AI optimization."""
-        return (
-            "You are an expert context optimizer. Analyze the provided context and "
-            "user request to create an enhanced, focused prompt.\n\n"
-            "Focus on:\n"
-            "- Key technical details\n"
-            "- Relevant code patterns\n"
-            "- Important constraints\n"
-            "- Actionable insights\n\n"
-            "Provide concise, structured analysis."
-        )
+        """Get comprehensive system prompt for AI optimization."""
+        return """# Advanced AI Context Enhancement Specialist
+
+You are an expert AI Context Enhancement Specialist optimizing developer workflows with intelligent prompt engineering.
+
+## Core Mission
+Transform raw development context into precision-engineered prompts that maximize Claude's effectiveness while minimizing token usage.
+
+## Analysis Framework
+
+### Intent Extraction
+- Parse user request for explicit and implicit technical requirements
+- Identify primary task category: coding, debugging, analysis, architecture, testing
+- Detect complexity level: simple, moderate, complex, enterprise
+- Extract domain specifics: languages, frameworks, tools, patterns
+
+### Context Prioritization 
+- **P0 Critical**: Active errors, failing tests, security issues, breaking changes
+- **P1 High**: Code patterns, recent changes, dependency conflicts, performance bottlenecks  
+- **P2 Medium**: Documentation, configuration, historical context
+- **P3 Low**: General environment info, redundant details
+
+### Workflow Optimization
+- Identify optimal execution strategy: sequential vs parallel
+- Detect opportunities for agent delegation
+- Recommend specialized tools and approaches
+- Flag potential risks and blockers
+
+## Output Format
+Respond with structured JSON followed by enhanced prompt:
+
+```json
+{
+  "analysis": {
+    "intent": "primary_task_description",
+    "category": "task_category",
+    "complexity": "simple|moderate|complex|enterprise",
+    "confidence": 1-10,
+    "domain": ["languages", "frameworks", "tools"]
+  },
+  "context": {
+    "critical": ["p0_items"],
+    "important": ["p1_items"], 
+    "relevant": ["p2_items"],
+    "token_savings": "percentage_reduced"
+  },
+  "recommendations": {
+    "strategy": "execution_approach",
+    "tools": ["recommended_tools"],
+    "agents": ["suggested_agents"],
+    "risks": ["potential_blockers"]
+  }
+}
+```
+
+## Enhancement Rules
+1. **Token Efficiency**: Eliminate redundancy, focus on actionable content
+2. **Technical Precision**: Include exact error messages, code snippets, file paths
+3. **Contextual Relevance**: Link user intent to available context elements
+4. **Strategic Guidance**: Suggest optimal approaches and tool selections
+5. **Risk Awareness**: Highlight potential issues and mitigation strategies
+
+## Response Format
+1. JSON analysis block (above)
+2. Line break
+3. Enhanced prompt starting with "ENHANCED REQUEST:"
+4. Structured sections: Context Summary, Technical Details, Recommended Approach
+5. End with specific action items
+
+Focus on creating prompts that enable Claude to execute with minimal clarification while maximizing output quality."""
 
     def __init__(self):
         # Default task categories
@@ -223,8 +331,18 @@ class OptimizedAIContextOptimizer:
             "security": ["security", "auth", "token", "encrypt"],
         }
 
+        # Context extraction patterns for better element detection
+        context_patterns = {
+            "errors": r"(error|exception|failed|traceback):\s*(.+)",
+            "git": r"(commit|branch|modified|deleted):\s*(.+)",
+            "files": r"([a-zA-Z0-9_./]+\.(py|js|ts|json|md|yml|yaml))",
+            "functions": r"(def|function|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            "imports": r"(import|from)\s+([a-zA-Z_][a-zA-Z0-9_.]*)",
+            "tests": r"(test_|describe|it\(|expect)",
+        }
+
         self.task_analyzer = TaskAnalyzer(task_categories)
-        self.context_extractor = ContextExtractor({})
+        self.context_extractor = ContextExtractor(context_patterns)
         self.meta_analyzer = MetaAnalyzer()
         self.prompt_builder = PromptBuilder()
         self.api_client = APIClient(self._get_system_prompt())
@@ -282,8 +400,11 @@ async def optimize_injection_with_ai(user_prompt: str, raw_context: str) -> str:
 
 
 def optimize_injection_sync(user_prompt: str, raw_context: str) -> str:
-    """Synchronous wrapper."""
+    """Synchronous wrapper with token optimization."""
     try:
+        # First apply token optimization to reduce payload size
+        token_optimized_context = optimize_for_tokens(raw_context, user_prompt)
+        
         try:
             asyncio.get_running_loop()
             import concurrent.futures
@@ -291,11 +412,12 @@ def optimize_injection_sync(user_prompt: str, raw_context: str) -> str:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run,
-                    optimize_injection_with_ai(user_prompt, raw_context),
+                    optimize_injection_with_ai(user_prompt, token_optimized_context),
                 )
                 return future.result()
         except RuntimeError:
-            return asyncio.run(optimize_injection_with_ai(user_prompt, raw_context))
+            return asyncio.run(optimize_injection_with_ai(user_prompt, token_optimized_context))
     except Exception as e:
         logger.error(f"Sync wrapper failed: {e}")
-        return raw_context
+        # Fallback to token-optimized context if AI fails
+        return optimize_for_tokens(raw_context, user_prompt)

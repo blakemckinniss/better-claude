@@ -31,7 +31,7 @@ def check_log_directory():
     print("📁 LOG DIRECTORY STATUS:")
     print("-" * 40)
 
-    log_base = Path("/home/devcontainers/better-claude/.claude/logs")
+    log_base = Path("/home/blake/better-claude/.claude/logs")
     if not log_base.exists():
         print("❌ Log directory does not exist!")
         return
@@ -84,7 +84,7 @@ def check_recent_logs(minutes=5):
     print(f"📝 RECENT LOG ACTIVITY (last {minutes} minutes):")
     print("-" * 40)
 
-    log_base = Path("/home/devcontainers/better-claude/.claude/logs/hooks")
+    log_base = Path("/home/blake/better-claude/.claude/logs/hooks")
     if not log_base.exists():
         print("No hooks log directory found")
         return
@@ -153,7 +153,7 @@ def generate_summary_report():
 
     # Get session logs for today
     today = datetime.now().strftime("%Y-%m-%d")
-    log_path = Path(f"/home/devcontainers/better-claude/.claude/logs/hooks")
+    log_path = Path(f"/home/blake/better-claude/.claude/logs/hooks")
 
     hook_counts = {}
     total_today = 0
