@@ -28,7 +28,7 @@ def handle(data):
     # Log hook entry
     if hook_logger:
         hook_logger.log_hook_entry(data, "Stop")
-    
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Debug: Print received data
@@ -92,7 +92,7 @@ def handle(data):
     # Initialize variables to avoid "possibly unbound" errors
     last_claude_message = None
     text_content = ""
-    
+
     try:
         # Get transcript path from data if available
         transcript_path = data.get("transcript_path")
@@ -294,21 +294,21 @@ def handle(data):
             session_id = data.get("session_id", "unknown")
             if session_id != "unknown":
                 monitor = get_session_monitor(session_id)
-                
+
                 # Log the last Claude response if we have it
                 if "last_claude_message" in locals() and last_claude_message and "text_content" in locals() and text_content:
                     monitor.log_response(text_content, {
                         "source": "final_response",
                         "timestamp": timestamp
                     })
-                
+
                 # Finalize the session
                 status = "completed"
                 if data.get("error"):
                     status = "error"
                 elif data.get("cancelled"):
                     status = "cancelled"
-                
+
                 monitor.finalize(status)
                 print(f"Session monitor finalized for {session_id[:8]}", file=sys.stderr)
         except Exception as e:

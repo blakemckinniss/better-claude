@@ -12,6 +12,7 @@ claude_md_cache.json
 # Claude internal directories
 .claude/hooks/.claude/
 .claude/hooks/hook_handlers/UserPromptSubmit/.claude/
+.claude/hooks/hook_handlers/UserPromptSubmit/.env
 .claude/hooks/tests/.claude/
 
 # Python cache
@@ -31,6 +32,7 @@ Thumbs.db
 *.log
 .claude/hooks/hook_logs/
 .claude/hooks/session_state/
+.claude/logs/
 
 *.tests_
 .claude-indexer

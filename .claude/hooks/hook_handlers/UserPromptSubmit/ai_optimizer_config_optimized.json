@@ -1,0 +1,44 @@
+{
+  "openrouter": {
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "default_model": "google/gemini-2.5-flash",
+    "fallback_models": ["google/gemini-2.5-pro"],
+    "temperature": 0.3,
+    "max_tokens": 2000,
+    "timeout": 30.0
+  },
+  "task_categories": {
+    "debugging": ["fix", "debug", "error", "bug", "crash"],
+    "implementation": ["implement", "create", "build", "add", "feature"],
+    "refactoring": ["refactor", "optimize", "improve", "clean"],
+    "security": ["security", "auth", "token", "encrypt"],
+    "testing": ["test", "coverage", "unit", "integration"]
+  },
+  "enhanced_context_patterns": {
+    "git": ["Modified files?:\\s*\\n(.+)", "On branch\\s+(.+)"],
+    "errors": ["(?i)(error|exception|failed).*:(.+)", "❌\\s*(.+)"],
+    "tools": ["mcp__([^_]+)__", "Available tools:\\s*\\n(.+)"]
+  },
+  "compact_meta_format": {
+    "confidence": "{confidence}",
+    "needs": "{needs}",
+    "concerns": "{concerns}",
+    "steps": "{steps}",
+    "complexity": "{complexity}",
+    "time": "{time}",
+    "agents": "{agents}",
+    "risks": "{risks}"
+  },
+  "enhanced_prompt_templates": {
+    "general": "Task: {task_type} | Request: {user_prompt}\nContext: {detected_elements}\n{full_context}\n\nMeta: {meta_json}",
+    "debugging": "Debug: {user_prompt}\nErrors: {detected_elements}\n{full_context}\n\nMeta: {meta_json}",
+    "implementation": "Build: {user_prompt}\nResources: {detected_elements}\n{full_context}\n\nMeta: {meta_json}"
+  },
+  "system_prompts": {
+    "general": "Analyze task and context. Output concise, structured response with meta analysis as JSON."
+  },
+  "zed_pro": {
+    "prompt_template": "\nZED-PRO: Analyze {user_prompt} with enhanced context. Determine subagent needs.",
+    "result_header": ""
+  }
+}

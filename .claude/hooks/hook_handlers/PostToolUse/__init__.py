@@ -62,7 +62,7 @@ def handle_file_modification(tool_name: str, tool_input: Dict[str, Any]) -> int:
 
     # Track if we found any critical issues
     has_critical_issues = False
-    
+
     # 0. Run Python auto-fixer FIRST (before any other tools)
     # This fixes syntax errors that would prevent other tools from running
     if ext == ".py":
@@ -71,7 +71,7 @@ def handle_file_modification(tool_name: str, tool_input: Dict[str, Any]) -> int:
             import json
             import os
             cwd = os.getcwd()
-            
+
             # Run the auto-fixer
             run_auto_fixer(tool_name, tool_input, cwd)
         except Exception as e:
@@ -161,7 +161,7 @@ def handle_hook(data: Dict[str, Any]) -> int:
     # Log hook entry
     if hook_logger:
         hook_logger.log_hook_entry(data, "PostToolUse")
-    
+
     try:
         tool_name = data.get("tool_name", "")
         tool_input = data.get("tool_input", {})
@@ -169,17 +169,17 @@ def handle_hook(data: Dict[str, Any]) -> int:
         if hook_logger:
             hook_logger.log_error(data, e)
         sys.exit(1)
-    
+
     # Initialize result code
     exit_code = 0
-    
+
     # Log tool usage to session monitor
     if HAS_SESSION_MONITOR and get_session_monitor:
         try:
             session_id = data.get("session_id", "unknown")
             if session_id != "unknown":
                 monitor = get_session_monitor(session_id)
-                
+
                 # Create tool entry
                 tool_entry = {
                     "tool_name": tool_name,
@@ -187,7 +187,7 @@ def handle_hook(data: Dict[str, Any]) -> int:
                     "success": data.get("success", True),
                     "details": ""
                 }
-                
+
                 # Extract meaningful details based on tool type
                 if tool_name in ["Read", "Glob", "Grep", "LS"]:
                     tool_entry["details"] = tool_input.get("file_path", tool_input.get("path", tool_input.get("pattern", "")))
@@ -200,23 +200,23 @@ def handle_hook(data: Dict[str, Any]) -> int:
                     tool_entry["details"] = str(tool_input)[:100]
                 else:
                     tool_entry["details"] = str(tool_input)[:100]
-                
+
                 # Log the tool usage
                 monitor.log_tools([tool_entry])
         except Exception as e:
             if os.environ.get("DEBUG_HOOKS"):
                 print(f"\nError logging tool to session monitor: {e}", file=sys.stderr)
-    
+
     # Get session tracker and ID
     tracker = get_session_tracker()
     session_id = extract_session_id(data)
-    
+
     # Check for TodoWrite first (special once-per-session behavior)
     if tool_name == "TodoWrite":
         # Get session tracker
         tracker = get_session_tracker()
         session_id = extract_session_id(data)
-        
+
         # Use separate warning type for TodoWrite
         if tracker.should_show_warning(session_id, WarningTypes.TODO_PATTERN):
             print("\n⚠️  TodoWrite Usage Detected!", file=sys.stderr)
@@ -229,27 +229,27 @@ def handle_hook(data: Dict[str, Any]) -> int:
             print("\n📚 Remember: You are the orchestrator, not the implementer!", file=sys.stderr)
             print("=" * 60, file=sys.stderr)
             print("\n(This warning appears once per session)", file=sys.stderr)
-            
+
             if hook_logger:
                 hook_logger.log_decision(data, "warn", "TodoWrite usage - subagent delegation recommended")
                 hook_logger.log_hook_exit(data, 2, result="warned")
             # Return 2 to show stderr to Claude (PostToolUse already ran)
             return 2
     # TodoWrite check already handled above, skip duplicate
-    
+
     # 1. First, always try to capture context for the tool usage
     try:
         handle_context_capture(data)
     except Exception as e:
         print(f"\nWarning: Context capture failed: {e}", file=sys.stderr)
-    
+
     # 2. Main tool handling logic with error handling
     try:
         # Handle Claude's built-in file modification tools
         # NOTE: Only process file modifications if delegation enforcement didn't already block
         if tool_name in ["Edit", "MultiEdit", "Write"] and exit_code == 0:
             exit_code = handle_file_modification(tool_name, tool_input)
-        
+
         # Handle MCP filesystem operations
         elif tool_name.startswith("mcp__filesystem__"):
             # MCP filesystem tools that modify files
@@ -264,7 +264,7 @@ def handle_hook(data: Dict[str, Any]) -> int:
                 if not file_path and tool_name == "mcp__filesystem__move_file":
                     # For move operations, check destination
                     file_path = tool_input.get("destination", "")
-                
+
                 if file_path:
                     # Reuse the same file modification handler
                     exit_code = handle_file_modification(tool_name, {"file_path": file_path})
@@ -273,7 +273,7 @@ def handle_hook(data: Dict[str, Any]) -> int:
             result = "blocked" if exit_code != 0 else "allowed"
             hook_logger.log_hook_exit(data, exit_code, result=result)
         return exit_code
-    
+
     except Exception as e:
         # Log the error
         if hook_logger:

@@ -360,7 +360,7 @@ def handle(event_data: Dict[str, Any]) -> None:
     # Log hook entry
     if hook_logger:
         hook_logger.log_hook_entry(event_data, "PreToolUse")
-    
+
     try:
         # Extract tool information
         tool_name = event_data.get("tool_name", "")
@@ -429,7 +429,7 @@ def handle(event_data: Dict[str, Any]) -> None:
             )
             if output:
                 print(output)
-        
+
         # Successful completion
         if hook_logger:
             hook_logger.log_hook_exit(event_data, 0, result="allowed")

@@ -1,8 +1,0 @@
-[
-  {
-    "tool_name": "Bash",
-    "timestamp": "2025-08-03T16:38:45.131635",
-    "success": true,
-    "details": "rm -rf .claude/logs/* && echo \"Logs cleared\""
-  }
-]

@@ -2,10 +2,10 @@
 """Session state management for controlling when to inject context."""
 
 import json
-import os
 import sys
-from pathlib import Path
 from typing import Any, Dict, Optional
+
+from .path_utils import get_claude_dir, get_project_root
 
 
 class SessionState:
@@ -13,24 +13,27 @@ class SessionState:
 
     def __init__(self, project_dir: Optional[str] = None):
         """Initialize session state manager."""
-        # Ensure we always have a valid project directory
+        # Get the true project root
         if project_dir:
-            self.project_dir = project_dir
+            # If project_dir is provided, validate it's not already inside .claude
+            if ".claude" in str(project_dir):
+                # Extract the actual project root
+                self.project_dir = get_project_root()
+            else:
+                self.project_dir = project_dir
         else:
-            self.project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+            self.project_dir = get_project_root()
 
-        # Handle placeholder and validate directory
-        if self.project_dir == "$CLAUDE_PROJECT_DIR" or not os.path.isdir(
-            self.project_dir
-        ):
-            self.project_dir = os.getcwd()
+        # State file location with validation
+        try:
+            claude_dir = get_claude_dir(self.project_dir)
+            self.state_dir = claude_dir / "hooks" / "session_state"
+            self.state_file = self.state_dir / "injection_state.json"
 
-        # State file location - project_dir is guaranteed to be str now
-        self.state_dir = Path(self.project_dir) / ".claude" / "hooks" / "session_state"
-        self.state_file = self.state_dir / "injection_state.json"
-
-        # Ensure directory exists
-        self.state_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure directory exists
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+        except ValueError as e:
+            raise ValueError(f"Failed to initialize session state paths: {e}") from e
 
     def _default_state(self) -> Dict[str, Any]:
         """Get default state."""

@@ -1,0 +1,12 @@
+{
+  "single_git status --porcelain": 0.00026110099570360036,
+  "single_git log --oneline -5": 0.00012904699542559683,
+  "single_git ls-files": 0.00010014820436481387,
+  "batched_git_commands": 1.958798384293914e-06,
+  "cache_miss_avg": 0.0018704789923503994,
+  "cache_hit_avg": 7.691487553529441e-07,
+  "cache_speedup": 2431.881972547795,
+  "fast_context_avg": 0.002421448600944132,
+  "comprehensive_context_avg": 0.0017528348020277918,
+  "fast_vs_comprehensive_speedup": 0.7238785912467253
+}

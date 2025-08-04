@@ -7,18 +7,21 @@ import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-import aiohttp
+from UserPromptSubmit.config import get_config
+from UserPromptSubmit.http_session_manager import (
+    HTTPSessionManager,
+    get_compiled_pattern,
+)
 
 
 class FirecrawlClient:
     """Async client for Firecrawl API integration."""
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.base_url = "https://api.firecrawl.dev/v1"
+    def __init__(self):
+        self.config = get_config().firecrawl
         self.headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {self.config.api_key}",
         }
 
     async def search(
@@ -35,24 +38,23 @@ class FirecrawlClient:
 
         payload = {
             "query": query,
-            "limit": limit,
+            "limit": limit or self.config.search_limit,
             "location": location,
             "tbs": tbs,
             "scrapeOptions": {"formats": formats},
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/search",
-                    headers=self.headers,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=15),
-                ) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        return None
+            async with HTTPSessionManager.request(
+                "POST",
+                f"{self.config.base_url}/search",
+                headers=self.headers,
+                json=payload,
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return None
         except Exception:
             return None
 
@@ -77,17 +79,16 @@ class FirecrawlClient:
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/scrape",
-                    headers=self.headers,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=20),
-                ) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        return None
+            async with HTTPSessionManager.request(
+                "POST",
+                f"{self.config.base_url}/scrape",
+                headers=self.headers,
+                json=payload,
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    return None
         except Exception:
             return None
 
@@ -150,8 +151,8 @@ class FirecrawlAnalyzer:
     @classmethod
     def extract_urls(cls, prompt: str) -> List[str]:
         """Extract URLs from the prompt for scraping."""
-        url_pattern = r"https?://[^\s)>]+(?:\([^\s]*\))?"
-        urls = re.findall(url_pattern, prompt)
+        url_pattern = get_compiled_pattern("url_pattern")
+        urls = url_pattern.findall(prompt)
 
         # Clean URLs (remove trailing punctuation)
         cleaned_urls = []
@@ -283,14 +284,14 @@ async def get_firecrawl_injection(prompt: str, project_dir: str) -> str:
     if not should_search and not urls_to_scrape:
         return ""
 
-    client = FirecrawlClient(api_key)
+    client = FirecrawlClient()
     injection_parts = ["<firecrawl-context>"]
 
     try:
         # Perform web search if beneficial
         if should_search:
             search_query = analyzer.generate_search_query(prompt)
-            search_results = await client.search(search_query, limit=3)
+            search_results = await client.search(search_query)
 
             if search_results and search_results.get("data"):
                 injection_parts.append(f"Web search for: {search_query}")
@@ -315,7 +316,7 @@ async def get_firecrawl_injection(prompt: str, project_dir: str) -> str:
             injection_parts.append("URL scraping results:")
 
             # Limit to 3 URLs to prevent excessive data
-            for url in urls_to_scrape[:3]:
+            for url in urls_to_scrape[: client.config.url_limit]:
                 try:
                     # Validate URL
                     parsed = urlparse(url)
@@ -330,8 +331,8 @@ async def get_firecrawl_injection(prompt: str, project_dir: str) -> str:
                         content = data.get("markdown", data.get("content", ""))
 
                         # Limit content
-                        if content and len(content) > 1500:
-                            content = f"{content[:1500]}..."
+                        if content and len(content) > client.config.content_limit:
+                            content = f"{content[:client.config.content_limit]}..."
 
                         injection_parts.append(f"Scraped: {title}")
                         injection_parts.append(f"URL: {url}")
@@ -369,6 +370,6 @@ if __name__ == "__main__":
 
     async def test():
         result = await get_firecrawl_injection(test_prompt, project_dir)
-        print(result)
+        print(result, file=sys.stderr)
 
     asyncio.run(test())

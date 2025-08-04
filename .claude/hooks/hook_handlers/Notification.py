@@ -15,7 +15,7 @@ def handle(data):
     # Log hook entry
     if hook_logger:
         hook_logger.log_hook_entry(data, "Notification")
-    
+
     message = data.get("message", "")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

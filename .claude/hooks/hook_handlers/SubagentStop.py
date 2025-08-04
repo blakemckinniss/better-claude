@@ -21,7 +21,7 @@ def handle(data):
     # Log hook entry
     if hook_logger:
         hook_logger.log_hook_entry(data, "SubagentStop")
-    
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Log the subagent stop
@@ -31,7 +31,7 @@ def handle(data):
 
     with open(log_path, "a") as f:
         f.write(f"[{timestamp}] Claude Code subagent session completed\n")
-    
+
     # Mark for injection on next user prompt to refresh context
     try:
         session_state = SessionState()

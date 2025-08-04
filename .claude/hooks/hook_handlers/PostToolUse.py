@@ -35,10 +35,10 @@ if __name__ == "__main__":
     try:
         # Read event data from stdin
         event_data = json.loads(sys.stdin.read())
-        
+
         # Handle with guard
         handle(event_data)
-        
+
     except json.JSONDecodeError as e:
         print(f"Failed to parse input: {e}", file=sys.stderr)
         sys.exit(1)

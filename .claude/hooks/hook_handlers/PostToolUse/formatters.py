@@ -74,7 +74,7 @@ class PythonFormatter(CodeFormatter):
     def format(self, file_path: str) -> List[Tuple[str, str]]:
         """Format a Python file with multiple tools."""
         results = []
-        
+
         # Check if this is a hooks module that uses relative imports
         is_hooks_module = ".claude/hooks/hook_handlers" in file_path
 
@@ -89,7 +89,7 @@ class PythonFormatter(CodeFormatter):
                 file_path,
             ],
         ]
-        
+
         # Only add absolufy-imports if not a hooks module
         # Hooks modules use relative imports for better modularity
         if not is_hooks_module:
@@ -97,7 +97,7 @@ class PythonFormatter(CodeFormatter):
                 # absolufy-imports: converts relative imports to absolute
                 ["absolufy-imports", "--application-directories", ".", file_path]
             )
-        
+
         # Continue with remaining formatters
         formatters.extend([
             # isort: sorts and organizes imports

@@ -8,12 +8,15 @@ import re
 import socket
 import sqlite3
 import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+
+from .path_utils import get_claude_dir, get_project_root
 
 try:
     import psutil  # type: ignore[import-untyped]
@@ -25,17 +28,23 @@ class SystemMonitor:
     """Unified system monitor combining runtime, test, and context functionality."""
 
     def __init__(self, project_dir: Optional[str] = None) -> None:
-        project_path = (
-            project_dir or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
-        )
-        self.project_dir = Path(project_path)
+        if project_dir:
+            self.project_dir = Path(project_dir)
+        else:
+            self.project_dir = Path(get_project_root())
         if psutil:
             self.process = psutil.Process()
         self.start_time = time.time()
 
-        # Cache setup
-        self.cache_dir = Path.home() / ".claude" / "system_monitor_cache"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Cache setup with validation
+        try:
+            claude_dir = get_claude_dir(str(self.project_dir))
+            self.cache_dir = claude_dir / "system_monitor_cache"
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to initialize system monitor cache paths: {e}",
+            ) from e
         self._cache: Dict[str, Any] = {}
         self._cache_ttl: Dict[str, float] = {}
         self._default_cache_duration = 30  # 30 seconds
@@ -104,18 +113,24 @@ class SystemMonitor:
                         "io_write_mb": 0.0,
                     },
                 }
-            
+
             try:
                 virtual_memory = psutil.virtual_memory()
                 return {
                     "cpu": {
                         "system_percent": psutil.cpu_percent(interval=0.1),
-                        "process_percent": self.process.cpu_percent() if self.process else 0.0,
+                        "process_percent": (
+                            self.process.cpu_percent() if self.process else 0.0
+                        ),
                         "count": psutil.cpu_count(),
                     },
                     "memory": {
                         "system_percent": virtual_memory.percent,
-                        "process_mb": self.process.memory_info().rss / 1024 / 1024 if self.process else 0.0,
+                        "process_mb": (
+                            self.process.memory_info().rss / 1024 / 1024
+                            if self.process
+                            else 0.0
+                        ),
                         "available_gb": virtual_memory.available / 1024 / 1024 / 1024,
                     },
                     "disk": {
@@ -125,7 +140,7 @@ class SystemMonitor:
                     },
                 }
             except (AttributeError, OSError) as e:
-                print(f"Error getting system resources: {e}")
+                print(f"Error getting system resources: {e}", file=sys.stderr)
                 return {
                     "cpu": {
                         "system_percent": 0.0,
@@ -155,7 +170,7 @@ class SystemMonitor:
                     "relevant_processes": [],
                     "total_processes": 0,
                 }
-            
+
             relevant_processes = []
 
             # Look for language servers, IDEs, and dev tools
@@ -184,7 +199,8 @@ class SystemMonitor:
                 ):
                     try:
                         if any(
-                            target in proc.info["name"].lower() for target in target_names
+                            target in proc.info["name"].lower()
+                            for target in target_names
                         ):
                             relevant_processes.append(
                                 {
@@ -206,7 +222,7 @@ class SystemMonitor:
                     "total_processes": len(psutil.pids()),
                 }
             except (AttributeError, OSError) as e:
-                print(f"Error getting process info: {e}")
+                print(f"Error getting process info: {e}", file=sys.stderr)
                 return {
                     "relevant_processes": [],
                     "total_processes": 0,
@@ -234,7 +250,7 @@ class SystemMonitor:
                         "can_reach_npm": False,
                     }
                 except (AttributeError, OSError) as e:
-                    print(f"Error getting network connections: {e}")
+                    print(f"Error getting network connections: {e}", file=sys.stderr)
                     connections = {
                         "active_connections": 0,
                         "can_reach_github": False,
@@ -259,7 +275,7 @@ class SystemMonitor:
                 await asyncio.wait_for(future, timeout=2)
                 return True
             except (OSError, asyncio.TimeoutError, ConnectionError) as e:
-                print(f"Network connectivity error for {host}: {e}")
+                print(f"Network connectivity error for {host}: {e}", file=sys.stderr)
                 return False
 
         targets = [
@@ -312,9 +328,9 @@ class SystemMonitor:
                                     },
                                 )
                         except (OSError, PermissionError) as e:
-                            print(f"File stat error for {filepath}: {e}")
+                            print(f"File stat error for {filepath}: {e}", file=sys.stderr)
             except (OSError, PermissionError) as e:
-                print(f"File system walk error: {e}")
+                print(f"File system walk error: {e}", file=sys.stderr)
 
             return {
                 "recently_modified": sorted(
@@ -370,7 +386,7 @@ class SystemMonitor:
                         ][:3],
                     }
             except (json.JSONDecodeError, OSError) as e:
-                print(f"Pytest JSON report error: {e}")
+                print(f"Pytest JSON report error: {e}", file=sys.stderr)
 
         # Check for junit XML output
         junit_files = list(self.project_dir.glob("**/pytest-junit.xml")) + list(
@@ -401,7 +417,7 @@ class SystemMonitor:
                     ][:3],
                 }
             except (ET.ParseError, OSError) as e:
-                print(f"Pytest XML report error: {e}")
+                print(f"Pytest XML report error: {e}", file=sys.stderr)
 
         return None
 
@@ -436,7 +452,7 @@ class SystemMonitor:
                         ][:3],
                     }
             except (json.JSONDecodeError, OSError) as e:
-                print(f"Jest results error: {e}")
+                print(f"Jest results error: {e}", file=sys.stderr)
         return None
 
     def _find_coverage_data(self) -> Optional[Dict[str, Any]]:
@@ -495,7 +511,7 @@ class SystemMonitor:
                         }
                         conn.close()
                 except (json.JSONDecodeError, OSError, sqlite3.Error) as e:
-                    print(f"Coverage data error: {e}")
+                    print(f"Coverage data error: {e}", file=sys.stderr)
 
             # JavaScript coverage (Jest/NYC)
             lcov_files = list(self.project_dir.glob("**/lcov.info")) + list(
@@ -540,7 +556,7 @@ class SystemMonitor:
                                     ),
                                 }
                 except (json.JSONDecodeError, OSError) as e:
-                    print(f"JavaScript coverage error: {e}")
+                    print(f"JavaScript coverage error: {e}", file=sys.stderr)
 
             return coverage_data
 
@@ -630,9 +646,9 @@ class SystemMonitor:
                                                 },
                                             )
                                 except (json.JSONDecodeError, OSError) as e:
-                                    print(f"VS Code workspace error: {e}")
+                                    print(f"VS Code workspace error: {e}", file=sys.stderr)
                 except (OSError, PermissionError) as e:
-                    print(f"VS Code workspace directory error: {e}")
+                    print(f"VS Code workspace directory error: {e}", file=sys.stderr)
 
         # Vim/Neovim recent files
         vim_files = [
@@ -660,7 +676,7 @@ class SystemMonitor:
                                             },
                                         )
                 except (OSError, UnicodeDecodeError) as e:
-                    print(f"Vim history file error: {e}")
+                    print(f"Vim history file error: {e}", file=sys.stderr)
 
         return files
 
@@ -695,9 +711,9 @@ class SystemMonitor:
                                 },
                             )
                     except (OSError, PermissionError) as e:
-                        print(f"File stat error for {file_path}: {e}")
+                        print(f"File stat error for {file_path}: {e}", file=sys.stderr)
         except (OSError, PermissionError) as e:
-            print(f"System recent files error: {e}")
+            print(f"System recent files error: {e}", file=sys.stderr)
 
         return files
 
@@ -725,7 +741,7 @@ class SystemMonitor:
                         ]
                         recent_files.extend(cached)
                 except (json.JSONDecodeError, OSError) as e:
-                    print(f"File history error: {e}")
+                    print(f"File history error: {e}", file=sys.stderr)
 
             # Deduplicate and sort by recency
             seen = set()
@@ -766,7 +782,7 @@ class SystemMonitor:
                                 },
                             )
             except (OSError, UnicodeDecodeError) as e:
-                print(f"Bash history error: {e}")
+                print(f"Bash history error: {e}", file=sys.stderr)
 
         # Check zsh history
         zsh_history = Path.home() / ".zsh_history"
@@ -787,7 +803,7 @@ class SystemMonitor:
                                     },
                                 )
             except (OSError, UnicodeDecodeError) as e:
-                print(f"Zsh history error: {e}")
+                print(f"Zsh history error: {e}", file=sys.stderr)
 
         # Get git history
         git_dir = self.project_dir / ".git"
@@ -840,7 +856,7 @@ class SystemMonitor:
                 subprocess.TimeoutExpired,
                 OSError,
             ) as e:
-                print(f"Git command error: {e}")
+                print(f"Git command error: {e}", file=sys.stderr)
 
         return commands
 
@@ -863,7 +879,7 @@ class SystemMonitor:
                         ]
                         commands.extend(cached)
                 except (json.JSONDecodeError, OSError) as e:
-                    print(f"Command history error: {e}")
+                    print(f"Command history error: {e}", file=sys.stderr)
 
             # Deduplicate and sort
             seen = set()
@@ -1010,7 +1026,7 @@ class SystemMonitor:
             asyncio.to_thread(self.find_test_results),
         )
         ci_status_task = asyncio.create_task(
-            asyncio.to_thread(lambda: self.get_ci_status() or {})
+            asyncio.to_thread(lambda: self.get_ci_status() or {}),
         )
         recent_files_task = asyncio.create_task(
             asyncio.to_thread(self.get_recent_file_access),
@@ -1127,9 +1143,7 @@ class SystemMonitor:
                     emoji = (
                         "🟢"
                         if cov["percentage"] > 80
-                        else "🟡"
-                        if cov["percentage"] > 60
-                        else "🔴"
+                        else "🟡" if cov["percentage"] > 60 else "🔴"
                     )
                     injection_parts.append(
                         f"{emoji} {lang.capitalize()} coverage: {cov['percentage']:.1f}%",
@@ -1288,9 +1302,7 @@ async def get_test_status_injection(prompt: str, project_dir: str) -> str:
                 emoji = (
                     "🟢"
                     if cov["percentage"] > 80
-                    else "🟡"
-                    if cov["percentage"] > 60
-                    else "🔴"
+                    else "🟡" if cov["percentage"] > 60 else "🔴"
                 )
                 injection_parts.append(
                     f"{emoji} {lang.capitalize()} coverage: {cov['percentage']:.1f}%",
@@ -1380,7 +1392,15 @@ async def get_context_history_injection(prompt: str, project_dir: str) -> str:
             for cmd in recent_commands
             if any(
                 tool in cmd["command"].lower()
-                for tool in ["git", "npm", "pip", "cargo", "make", "test", "build"]
+                for tool in [
+                    "git",
+                    "npm",
+                    "pip",
+                    "cargo",
+                    "make",
+                    "test",
+                    "build",
+                ]
             )
         ]
         if dev_commands:

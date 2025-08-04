@@ -36,13 +36,13 @@ class PatternValidator(ABC):
         line_end = content.find("\n", match_start)
         if line_end == -1:
             line_end = len(content)
-        
+
         # Get the exact line containing the match
         actual_line = content[line_start:line_end]
-        
+
         # Calculate position within the line
         relative_pos = match_start - line_start
-        
+
         # Check for single-line comment
         comment_pos = actual_line.find("#")
         if comment_pos != -1 and comment_pos < relative_pos:

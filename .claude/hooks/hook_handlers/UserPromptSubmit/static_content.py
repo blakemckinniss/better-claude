@@ -1,4 +1,5 @@
 """Static Content Injector - consolidates prefix and suffix injections."""
+import sys
 
 import json
 import re
@@ -36,7 +37,11 @@ class EnhancedTaskClassifier:
                     (r"\b(feature|function|class|module|component)\b", 0.6),
                     (r"\b(add|new|enhance|extend)\b", 0.5),
                 ],
-                "snippets": ["modern_tools", "code_rules", "feature_guidelines"],
+                "snippets": [
+                    "modern_tools",
+                    "code_rules",
+                    "feature_guidelines",
+                ],
             },
             # Medium complexity tasks (0.4-0.7)
             "optimization": {
@@ -117,7 +122,10 @@ class EnhancedTaskClassifier:
 
         # Apply complexity modifiers
         modifier_score = 0.0
-        for modifier_name, (pattern, weight) in self.complexity_modifiers.items():
+        for modifier_name, (
+            pattern,
+            weight,
+        ) in self.complexity_modifiers.items():
             if re.search(pattern, prompt_lower):
                 modifier_score += weight
 
@@ -141,14 +149,12 @@ class ClaudeMdSnippets:
 
     # Cache for parsed snippets
     _snippets_cache = None
-    _cache_path = Path(
-        "/home/devcontainers/better-claude/.claude/hooks/claude_md_cache.json",
-    )
+    _cache_path = Path(__file__).parent.parent.parent / "claude_md_cache.json"
 
     @classmethod
     def _parse_claude_md(cls) -> Dict[str, str]:
         """Parse CLAUDE.md into categorized snippets."""
-        claude_md_path = Path("/home/devcontainers/better-claude/CLAUDE.md")
+        claude_md_path = Path(__file__).parent.parent.parent.parent / "CLAUDE.md"
         if not claude_md_path.exists():
             return {}
 
@@ -245,7 +251,7 @@ class ClaudeMdSnippets:
 
         except Exception as e:
             # Return empty dict on any error
-            print(f"Error parsing CLAUDE.md: {e}")
+            print(f"Error parsing CLAUDE.md: {e}", file=sys.stderr)
             return {}
 
     @classmethod
@@ -286,7 +292,11 @@ class ClaudeMdSnippets:
 
         # Map snippet suggestions to actual snippets
         snippet_mapping = {
-            "modern_tools": ("modern_tools", "<claude-md-tools>", "</claude-md-tools>"),
+            "modern_tools": (
+                "modern_tools",
+                "<claude-md-tools>",
+                "</claude-md-tools>",
+            ),
             "parallel_execution": (
                 "parallel_execution",
                 "<claude-md-parallel>",
@@ -317,7 +327,11 @@ class ClaudeMdSnippets:
                 "<claude-md-security>",
                 "</claude-md-security>",
             ),
-            "hooks_system": ("hooks_system", "<claude-md-hooks>", "</claude-md-hooks>"),
+            "hooks_system": (
+                "hooks_system",
+                "<claude-md-hooks>",
+                "</claude-md-hooks>",
+            ),
             "feature_guidelines": (
                 "feature_guidelines",
                 "<claude-md-features>",
@@ -373,7 +387,7 @@ class StaticContentInjector:
         }
 
         # Try to load additional conventions from CLAUDE.md
-        claude_md_path = Path("/home/devcontainers/better-claude/CLAUDE.md")
+        claude_md_path = Path(__file__).parent.parent.parent.parent / "CLAUDE.md"
         if claude_md_path.exists():
             # Extract key conventions (simplified for now)
             conventions["style"] = "Follow existing code conventions and patterns"
@@ -494,7 +508,12 @@ class StaticContentInjector:
         # Apply enhanced suffix for complexity > 0.2
         should_apply = complexity_score > 0.2
 
-        return should_apply, complexity_score, task_categories, relevant_snippets
+        return (
+            should_apply,
+            complexity_score,
+            task_categories,
+            relevant_snippets,
+        )
 
     def get_suffix(self, user_prompt: Optional[str] = None) -> str:
         """Get the suffix to inject as additional context.
@@ -524,9 +543,12 @@ class StaticContentInjector:
             return core_suffix
 
         # Analyze prompt using enhanced classifier
-        apply_enhanced, complexity_score, task_categories, snippet_suggestions = (
-            self.analyze_prompt(user_prompt)
-        )
+        (
+            apply_enhanced,
+            complexity_score,
+            task_categories,
+            snippet_suggestions,
+        ) = self.analyze_prompt(user_prompt)
 
         # Start with core suffix
         full_suffix = core_suffix

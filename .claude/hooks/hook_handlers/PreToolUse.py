@@ -46,7 +46,7 @@ def handle_hook(event_data: Dict[str, Any]) -> int:
     # Log hook entry
     if hook_logger:
         hook_logger.log_hook_entry(event_data, "PreToolUse")
-    
+
     try:
         # Extract tool information
         tool_name = event_data.get("tool_name", "")

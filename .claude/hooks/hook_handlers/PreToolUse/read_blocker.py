@@ -9,11 +9,11 @@ def check_read_operation_block(
     operation: str,
 ) -> Tuple[bool, str]:
     """Check if Read operation should be blocked with Bash alternatives guidance.
-    
+
     Args:
         tool_name: The name of the tool being used
         operation: The operation type (read, write, edit, etc.)
-    
+
     Returns:
         (should_block, guidance_message): True if Read should be blocked
     """
@@ -30,5 +30,5 @@ def check_read_operation_block(
             "  •  scc stats –  Bash(command=\"scc --by-file --no-cocomo | head\")"
         )
         return True, guidance
-    
+
     return False, ""

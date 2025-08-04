@@ -1,0 +1,31 @@
+{
+  "openrouter": {
+    "url": "https://openrouter.ai/api/v1/chat/completions",
+    "default_model": "google/gemini-2.5-flash",
+    "fallback_models": ["google/gemini-2.5-pro"],
+    "temperature": 0.3,
+    "max_tokens": 2000,
+    "timeout": 30.0
+  },
+  "firecrawl": {
+    "base_url": "https://api.firecrawl.dev/v1",
+    "search_limit": 3,
+    "content_limit": 1500,
+    "url_limit": 3
+  },
+  "context": {
+    "max_context_tokens": 2000,
+    "relevance_threshold": 0.3,
+    "content_limit": 1500,
+    "database_timeout": 30.0,
+    "recovery_timeout": 300
+  },
+  "performance": {
+    "max_memory_mb": 512,
+    "max_execution_time": 30.0,
+    "max_concurrent_requests": 10,
+    "connection_pool_limit": 50,
+    "connection_pool_limit_per_host": 20,
+    "keepalive_timeout": 30.0
+  }
+}

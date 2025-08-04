@@ -157,7 +157,8 @@ class GitInjector:
             elif line.strip() and current_commit:
                 # This is a stats line
                 stats_match = re.search(
-                    r"(\d+) file[s]? changed(?:, (\d+) insertion[s]?)?(?:, (\d+) deletion[s]?)?",
+                    r"(\d+) file[s]? changed(?:, (\d+) insertion[s]?)?"
+                    r"(?:, (\d+) deletion[s]?)?",
                     line,
                 )
                 if stats_match:
@@ -315,11 +316,14 @@ class GitInjector:
 
         # Git status summary
         context_parts.append(
-            "gitStatus: This is the git status at the start of the conversation. Note that this status is a snapshot in time, and will not update during the conversation.",
+            "gitStatus: This is the git status at the start of the conversation. "
+            "Note that this status is a snapshot in time, and will not update "
+            "during the conversation.",
         )
         context_parts.append(f"Current branch: {status['branch']}")
         context_parts.append(
-            f"\nMain branch (you will usually use this for PRs): {status['main_branch']}\n",
+            f"\nMain branch (you will usually use this for PRs): "
+            f"{status['main_branch']}\n",
         )
 
         # Status details
@@ -373,7 +377,7 @@ class GitInjector:
         # File summary from git ls-files
         if file_summary["total_files"] > 0:
             context_parts.append(
-                f"\nRepository contains {file_summary['total_files']} tracked files"
+                f"\nRepository contains {file_summary['total_files']} tracked files",
             )
 
             # Top file extensions
@@ -418,4 +422,4 @@ if __name__ == "__main__":
     import sys
 
     project_dir = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
-    print(get_git_injection(project_dir))
+    print(get_git_injection(project_dir), file=sys.stderr)

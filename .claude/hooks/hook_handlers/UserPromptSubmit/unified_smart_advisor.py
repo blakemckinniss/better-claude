@@ -1,10 +1,10 @@
 """Unified Smart Advisor - consolidates zen, agent, content, and trigger injections."""
 
-import os
 import re
 from functools import lru_cache
-from pathlib import Path
 from typing import List, Optional, Tuple
+
+from .path_utils import get_claude_dir, get_project_root
 
 
 class UnifiedSmartAdvisor:
@@ -12,11 +12,7 @@ class UnifiedSmartAdvisor:
     trigger_injection into a single, efficient recommendation system."""
 
     def __init__(self):
-        self.project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
-        if self.project_dir == "$CLAUDE_PROJECT_DIR" or not os.path.isdir(
-            self.project_dir
-        ):
-            self.project_dir = os.getcwd()
+        self.project_dir = get_project_root()
 
         # Agent patterns from agent_injector.py
         self.intent_patterns = {
@@ -91,7 +87,13 @@ class UnifiedSmartAdvisor:
                 "zen_tool": "thinkdeep",
             },
             "documentation": {
-                "keywords": ["document", "docs", "readme", "explain", "documentation"],
+                "keywords": [
+                    "document",
+                    "docs",
+                    "readme",
+                    "explain",
+                    "documentation",
+                ],
                 "agent": "code-documenter",
                 "zen_tool": "docgen",
             },
@@ -101,12 +103,24 @@ class UnifiedSmartAdvisor:
                 "zen_tool": "analyze",
             },
             "devops": {
-                "keywords": ["CI/CD", "deploy", "docker", "kubernetes", "pipeline"],
+                "keywords": [
+                    "CI/CD",
+                    "deploy",
+                    "docker",
+                    "kubernetes",
+                    "pipeline",
+                ],
                 "agent": "devops-engineer",
                 "zen_tool": "analyze",
             },
             "migration": {
-                "keywords": ["migrate", "upgrade", "move from", "transition", "port"],
+                "keywords": [
+                    "migrate",
+                    "upgrade",
+                    "move from",
+                    "transition",
+                    "port",
+                ],
                 "agent": "migration-planner",
                 "zen_tool": "thinkdeep",
             },
@@ -134,7 +148,12 @@ class UnifiedSmartAdvisor:
                 "priority": 9,
             },
             "mcp__filesystem__": {
-                "keywords": ["create file", "delete file", "list files", "find files"],
+                "keywords": [
+                    "create file",
+                    "delete file",
+                    "list files",
+                    "find files",
+                ],
                 "priority": 7,
             },
             "mcp__tavily-remote__": {
@@ -168,14 +187,14 @@ class UnifiedSmartAdvisor:
         # ZEN tool selection patterns from zen_injection.py
         self.zen_tool_patterns = {
             "thinkdeep": [
-                r"\b(investigate|complex|deep|thorough|comprehensive|analyze deeply)\b"
+                r"\b(investigate|complex|deep|thorough|comprehensive|analyze deeply)\b",
             ],
             "debug": [
-                r"\b(debug|bug|error|issue|problem|broken|failing|fix|troubleshoot)\b"
+                r"\b(debug|bug|error|issue|problem|broken|failing|fix|troubleshoot)\b",
             ],
             "analyze": [r"\b(analyze|assessment|review|evaluate|examine|audit)\b"],
             "consensus": [
-                r"\b(should I|which is better|compare|decide|choice|opinion)\b"
+                r"\b(should I|which is better|compare|decide|choice|opinion)\b",
             ],
             "chat": [r"\b(help|how to|explain|guide|question|brainstorm|discuss)\b"],
         }
@@ -183,8 +202,14 @@ class UnifiedSmartAdvisor:
     @lru_cache(maxsize=100)
     def _get_available_agents(self) -> List[Tuple[str, str]]:
         """Get list of available agents from .claude/agents directory (cached)."""
-        agents = []
-        agents_dir = Path(self.project_dir) / ".claude" / "agents"
+        agents: List[Tuple[str, str]] = []
+
+        try:
+            claude_dir = get_claude_dir(self.project_dir)
+            agents_dir = claude_dir / "agents"
+        except ValueError:
+            # If we can't construct a valid .claude path, return empty list
+            return agents
 
         if not agents_dir.exists():
             return agents
@@ -238,7 +263,7 @@ class UnifiedSmartAdvisor:
                         score,
                         intent_data["agent"],
                         intent_data["zen_tool"],
-                    )
+                    ),
                 )
 
         return sorted(matches, key=lambda x: x[1], reverse=True)
@@ -330,7 +355,7 @@ class UnifiedSmartAdvisor:
             sections.append("## 🎯 Task Analysis & Agent Recommendations")
             for intent, score, agent, zen_tool in intent_matches:
                 sections.append(
-                    f"- **{intent.title()}** (score: {score:.1f}) → Use `{agent}` agent or `mcp__zen__{zen_tool}`"
+                    f"- **{intent.title()}** (score: {score:.1f}) → Use `{agent}` agent or `mcp__zen__{zen_tool}`",
                 )
 
         # 2. ZEN Tool Recommendations
@@ -352,12 +377,10 @@ class UnifiedSmartAdvisor:
                     prefix = (
                         "🔴 CRITICAL"
                         if score > 70
-                        else "🟡 IMPORTANT"
-                        if score > 50
-                        else "🟢 SUGGESTED"
+                        else "🟡 IMPORTANT" if score > 50 else "🟢 SUGGESTED"
                     )
                     sections.append(
-                        f"- {prefix}: {tool_id} ({tool_name}) [score: {score:.0f}]"
+                        f"- {prefix}: {tool_id} ({tool_name}) [score: {score:.0f}]",
                     )
 
         # 4. Performance Optimizations
