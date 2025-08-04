@@ -3,6 +3,10 @@
 
 # Core async/HTTP functionality
 aiohttp>=3.8.0
+uvloop>=0.17.0
+
+# System monitoring
+psutil>=5.9.0
 
 # Natural Language Processing
 spacy>=3.4.0

@@ -76,6 +76,6 @@ You only have 200,000 tokens to use. Each token costs money and compute time. We
 - CONSULT WITH ZEN_MCP (agent ZEN-PRO.md) FOR ANY CLARIFICATION ON ANYTHING.
 
 # OTHER_CONTRACTS:
-$CLAUDE_PROJECT_DIR/.claude/HOOK_CONTRACT.md
-$CLAUDE_PROJECT_DIR/.claude/PROMPT_CONTRACT.md
-$CLAUDE_PROJECT_DIR/.claude/ZEN_CONTRACT.md
+$CLAUDE_PROJECT_DIR/.claude/contracts/HOOK_CONTRACT.md
+$CLAUDE_PROJECT_DIR/.claude/contracts/PROMPT_CONTRACT.md
+$CLAUDE_PROJECT_DIR/.claude/contracts/ZEN_CONTRACT.md
