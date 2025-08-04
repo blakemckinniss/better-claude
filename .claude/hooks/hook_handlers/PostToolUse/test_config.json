@@ -1,0 +1,102 @@
+{
+  "performance_requirements": {
+    "max_execution_time_ms": 100,
+    "max_memory_growth_mb": 50,
+    "max_concurrent_requests": 20,
+    "p95_execution_time_ms": 150,
+    "p99_execution_time_ms": 200
+  },
+  "test_data": {
+    "iterations_per_test": 100,
+    "concurrent_sessions": 1000,
+    "test_file_sizes": [1024, 10240, 102400],
+    "load_test_duration_seconds": 60,
+    "stress_test_multiplier": 5
+  },
+  "coverage_requirements": {
+    "minimum_line_coverage": 80,
+    "minimum_branch_coverage": 75,
+    "minimum_function_coverage": 90,
+    "critical_path_coverage": 95
+  },
+  "security_tests": {
+    "test_malicious_inputs": true,
+    "test_session_isolation": true,
+    "test_file_safety": true,
+    "test_injection_attacks": true,
+    "test_import_safety": true,
+    "test_privilege_escalation": true
+  },
+  "integration_tests": {
+    "test_hook_integration": true,
+    "test_shared_intelligence": true,
+    "test_session_persistence": true,
+    "test_error_propagation": true,
+    "test_concurrent_access": true
+  },
+  "test_scenarios": {
+    "simple_operations": [
+      {
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/simple/file.py"},
+        "expected_feedback_types": ["context", "efficiency"]
+      },
+      {
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls -la"},
+        "expected_feedback_types": ["tool_upgrade"]
+      }
+    ],
+    "complex_operations": [
+      {
+        "tool_name": "Bash",
+        "tool_input": {"command": "find . -name '*.py' | xargs grep -l 'class' | head -10"},
+        "expected_feedback_types": ["tool_upgrade", "delegation"]
+      },
+      {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "/complex/module.py",
+          "old_string": "# Large old implementation...",
+          "new_string": "# New implementation..."
+        },
+        "expected_feedback_types": ["context", "delegation"]
+      }
+    ],
+    "error_conditions": [
+      {
+        "tool_name": "",
+        "tool_input": {},
+        "expected_behavior": "graceful_handling"
+      },
+      {
+        "tool_name": "Read",
+        "tool_input": {"file_path": "/nonexistent/file.py"},
+        "expected_behavior": "error_feedback"
+      }
+    ]
+  },
+  "mock_strategies": {
+    "session_tracker": {
+      "use_in_memory": true,
+      "simulate_persistence": true,
+      "test_concurrency": true
+    },
+    "file_operations": {
+      "use_temp_files": true,
+      "cleanup_after_tests": true,
+      "simulate_large_files": true
+    },
+    "shared_intelligence": {
+      "mock_expensive_operations": true,
+      "cache_results": true,
+      "simulate_failures": true
+    }
+  },
+  "reporting": {
+    "generate_html_report": true,
+    "include_performance_graphs": true,
+    "save_test_artifacts": true,
+    "create_coverage_report": true
+  }
+}

@@ -28,13 +28,12 @@ def format_minimal_output(context: Dict[str, Any]) -> str:
 def format_zen_pro_disclaimer() -> str:
     """Format static disclaimer for zen-pro consultation."""
     return """
-🚨 **IMPORTANT**:
 
-   ## All user prompts MUST be followed by immediate "zen-pro" consultation for BRD/PRD planning.
+   ## ONBOARDING ZEN-PRO
+   Ultrathink: all user prompts MUST be followed by immediate "zen-pro" consultation for BRD/PRD planning.
+   Proactively Must Use: Task(subagent_type="zen-pro") with websearch enabled for strategic analysis and multi-agent orchestration.
 
-   Use: Task(subagent_type="zed-pro") for strategic analysis and multi-agent orchestration.
-
-   ## MUST USE MODERN CLI COMMANDS (ASSUME INSTALLED)
+   ## SIGNED CLI_CONTRACT (ASSUME INSTALLED)
   **Bash(**
   rg (fast grep), fd (find fast), bat (color cat), fzf (fuzzy pick), zoxide (smart cd), lsd (pretty ls), sd (sed alt), jq (JSON CLI), yq (YAML CLI), mlr (CSV CLI), ctags (tag index), delta (diff view), tree (dir tree), tokei (code LOC), scc (LOC alt), exa (modern ls), dust (disk du), duf (disk df), procs (ps plus), hyperfine (bench), entr (watch run), xh (curl alt), dog (DNS dig), podman (containers), dive (layer view), trivy (vuln scan), tldr (examples)
   **)**

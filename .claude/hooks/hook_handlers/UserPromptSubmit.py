@@ -86,7 +86,7 @@ INJECTION_CIRCUIT_BREAKERS = {
     "git": True,  # Git injection (standalone)
     "mcp": True,  # MCP injection (standalone)
     "firecrawl": False,  # Firecrawl injection
-    "zed_pro_orchestrator": True,  # ZED-PRO master orchestrator (CRITICAL - DO NOT DISABLE)
+    "zen_pro_orchestrator": True,  # zen-pro master orchestrator (CRITICAL - DO NOT DISABLE)
 }
 
 # Pre-compute enabled injections for performance
@@ -573,7 +573,7 @@ async def handle_async(data):
         )
 
         # ALWAYS optimize context with AI - no env checks, fails loudly if API fails
-        # This now includes: Gemini enhancement + static content + ZED-PRO
+        # This now includes: Gemini enhancement + static content + zen-pro
         if INJECTION_CIRCUIT_BREAKERS["enhanced_ai_optimizer"]:
             try:
                 additional_context = optimize_injection_sync(user_prompt, raw_context)
@@ -589,8 +589,8 @@ async def handle_async(data):
             )
             additional_context = raw_context
 
-        # Note: ZED-PRO is now invoked INSIDE ai_context_optimizer.py after Gemini enhancement
-        # This ensures the proper flow: User prompt → Gemini → Static content → ZED-PRO
+        # Note: zen-pro is now invoked INSIDE ai_context_optimizer.py after Gemini enhancement
+        # This ensures the proper flow: User prompt → Gemini → Static content → zen-pro
 
         # Contract 3.2: Return proper JSON structure with all required fields
         output = {

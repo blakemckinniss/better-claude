@@ -271,7 +271,7 @@ async def optimize_injection_with_ai(user_prompt: str, raw_context: str) -> str:
         # Minimal static content
         static_suffix = "\nThink optimal. Consult with ZEN whenever possible."
 
-        # Combine with minimal formatting (removed ZED-PRO dependency)
+        # Combine with minimal formatting (removed zen-pro dependency)
         final_result = f"CONTEXT: {enhanced_result}\n{static_suffix}"
 
         return final_result

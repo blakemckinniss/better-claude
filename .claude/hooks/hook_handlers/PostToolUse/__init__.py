@@ -27,6 +27,7 @@ except ImportError:
 from PostToolUse.config import get_config
 from PostToolUse.context_capture import handle_context_capture
 from PostToolUse.diagnostics import print_diagnostic_report, run_all_diagnostics
+from PostToolUse.educational_feedback_enhanced import handle_educational_feedback
 from PostToolUse.formatters import format_file
 from PostToolUse.python_auto_fixer import run_auto_fixer
 from PostToolUse.session_tracker import (
@@ -242,8 +243,14 @@ def handle_hook(data: Dict[str, Any]) -> int:
         handle_context_capture(data)
     except Exception as e:
         print(f"\nWarning: Context capture failed: {e}", file=sys.stderr)
+    
+    # 2. Provide enhanced educational feedback using shared intelligence
+    try:
+        handle_educational_feedback(data)
+    except Exception as e:
+        print(f"\nWarning: Educational feedback failed: {e}", file=sys.stderr)
 
-    # 2. Main tool handling logic with error handling
+    # 3. Main tool handling logic with error handling
     try:
         # Handle Claude's built-in file modification tools
         # NOTE: Only process file modifications if delegation enforcement didn't already block

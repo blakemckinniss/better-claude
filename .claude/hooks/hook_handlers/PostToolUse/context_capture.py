@@ -14,19 +14,27 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "UserPromptSubmit"))
+if TYPE_CHECKING:
+    from ..UserPromptSubmit.context_manager import ContextManager
 
 try:
-    from context_manager import get_context_manager, store_conversation_context
+    from ..UserPromptSubmit.context_manager import (
+        get_context_manager,
+        store_conversation_context,
+    )
 except ImportError:
     # Fallback if context manager is not available
-    def get_context_manager():
+    def get_context_manager(project_dir: Optional[str] = None) -> Optional["ContextManager"]:
         return None
 
-    def store_conversation_context(*args, **kwargs):
+    def store_conversation_context(
+        user_prompt: str,
+        context_data: str,
+        files_involved: Optional[List[str]] = None,
+        outcome: str = "unknown"
+    ) -> Optional[int]:
         return None
 
 

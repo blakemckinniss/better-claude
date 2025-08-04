@@ -2,22 +2,60 @@
   "openrouter": {
     "url": "https://openrouter.ai/api/v1/chat/completions",
     "default_model": "google/gemini-2.5-flash",
-    "fallback_models": ["google/gemini-2.5-pro"],
+    "fallback_models": [
+      "google/gemini-2.5-pro"
+    ],
     "temperature": 0.3,
     "max_tokens": 2000,
     "timeout": 30.0
   },
   "task_categories": {
-    "debugging": ["fix", "debug", "error", "bug", "crash"],
-    "implementation": ["implement", "create", "build", "add", "feature"],
-    "refactoring": ["refactor", "optimize", "improve", "clean"],
-    "security": ["security", "auth", "token", "encrypt"],
-    "testing": ["test", "coverage", "unit", "integration"]
+    "debugging": [
+      "fix",
+      "debug",
+      "error",
+      "bug",
+      "crash"
+    ],
+    "implementation": [
+      "implement",
+      "create",
+      "build",
+      "add",
+      "feature"
+    ],
+    "refactoring": [
+      "refactor",
+      "optimize",
+      "improve",
+      "clean"
+    ],
+    "security": [
+      "security",
+      "auth",
+      "token",
+      "encrypt"
+    ],
+    "testing": [
+      "test",
+      "coverage",
+      "unit",
+      "integration"
+    ]
   },
   "enhanced_context_patterns": {
-    "git": ["Modified files?:\\s*\\n(.+)", "On branch\\s+(.+)"],
-    "errors": ["(?i)(error|exception|failed).*:(.+)", "❌\\s*(.+)"],
-    "tools": ["mcp__([^_]+)__", "Available tools:\\s*\\n(.+)"]
+    "git": [
+      "Modified files?:\\s*\\n(.+)",
+      "On branch\\s+(.+)"
+    ],
+    "errors": [
+      "(?i)(error|exception|failed).*:(.+)",
+      "❌\\s*(.+)"
+    ],
+    "tools": [
+      "mcp__([^_]+)__",
+      "Available tools:\\s*\\n(.+)"
+    ]
   },
   "compact_meta_format": {
     "confidence": "{confidence}",
@@ -37,8 +75,8 @@
   "system_prompts": {
     "general": "Analyze task and context. Output concise, structured response with meta analysis as JSON."
   },
-  "zed_pro": {
-    "prompt_template": "\nZED-PRO: Analyze {user_prompt} with enhanced context. Determine subagent needs.",
+  "zen_pro": {
+    "prompt_template": "\nzen-pro: Analyze {user_prompt} with enhanced context. Determine subagent needs.",
     "result_header": ""
   }
 }

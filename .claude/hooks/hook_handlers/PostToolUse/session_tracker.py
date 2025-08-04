@@ -4,21 +4,21 @@
 import json
 import time
 from pathlib import Path
-from typing import Dict, Set
 from threading import Lock
+from typing import Dict, Optional
 
 
 class SessionWarningTracker:
     """Tracks warnings shown per session to avoid repetition."""
 
-    def __init__(self, storage_path: str = None):
+    def __init__(self, storage_path: Optional[str] = None):
         """Initialize tracker with persistent storage."""
         if storage_path is None:
             # Use hook directory for storage
             hook_dir = Path(__file__).parent
-            storage_path = hook_dir / "session_warnings.json"
-
-        self.storage_path = Path(storage_path)
+            self.storage_path = hook_dir / "session_warnings.json"
+        else:
+            self.storage_path = Path(storage_path)
         self._lock = Lock()
         self._cache: Dict[str, Dict[str, float]] = {}
         self._load_data()
@@ -116,7 +116,7 @@ class SessionWarningTracker:
         return True
 
 # Global instance for use across the hook
-_tracker: SessionWarningTracker = None
+_tracker: Optional[SessionWarningTracker] = None
 
 
 def get_session_tracker() -> SessionWarningTracker:

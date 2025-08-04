@@ -5,6 +5,7 @@ import ast
 import re
 import subprocess
 import sys
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -22,7 +23,7 @@ class DiagnosticResult:
     code: Optional[str] = None
 
 
-class DiagnosticRunner:
+class DiagnosticRunner(ABC):
     """Base class for diagnostic runners."""
 
     def __init__(self):
@@ -53,6 +54,11 @@ class DiagnosticRunner:
             return result.returncode, result.stdout, result.stderr
         except Exception as e:
             return 1, "", str(e)
+
+    @abstractmethod
+    def run(self, file_path: str) -> List[DiagnosticResult]:
+        """Run diagnostic checks on a file and return results."""
+        ...
 
 
 class MyPyDiagnostics(DiagnosticRunner):
@@ -316,8 +322,7 @@ def run_all_diagnostics(file_path: str) -> Tuple[List[DiagnosticResult], bool]:
         ]
 
         for diagnostic in diagnostics:
-            if hasattr(diagnostic, "run"):
-                results.extend(diagnostic.run(file_path))
+            results.extend(diagnostic.run(file_path))
 
         # Run AST-based checkers
         checkers = [

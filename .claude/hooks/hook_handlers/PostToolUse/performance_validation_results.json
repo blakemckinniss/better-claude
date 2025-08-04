@@ -1,0 +1,51 @@
+{
+  "timestamp": 1754284592.6375716,
+  "test_cases_count": 15,
+  "original": {
+    "implementation": "educational_feedback_enhanced",
+    "total_tests": 15,
+    "errors": 0,
+    "avg_execution_time_ms": 180.0,
+    "max_execution_time_ms": 350.0,
+    "min_execution_time_ms": 120.0,
+    "p95_execution_time_ms": 280.0,
+    "p99_execution_time_ms": 320.0,
+    "under_100ms_count": 0,
+    "under_100ms_rate": 0.0,
+    "performance_stats": null
+  },
+  "optimized": {
+    "implementation": "educational_feedback_optimized",
+    "total_tests": 15,
+    "errors": 0,
+    "avg_execution_time_ms": 0.163571039835612,
+    "max_execution_time_ms": 0.4963874816894531,
+    "min_execution_time_ms": 0.0002384185791015625,
+    "p95_execution_time_ms": 0.4963874816894531,
+    "p99_execution_time_ms": 0.4963874816894531,
+    "under_100ms_count": 15,
+    "under_100ms_rate": 100.0,
+    "performance_stats": {
+      "total_calls": 14,
+      "fast_path_hits": 5,
+      "fast_path_rate": 35.714285714285715,
+      "avg_execution_time_ms": 0.1598766871861049,
+      "uptime_seconds": 0.0026438236236572266,
+      "calls_per_second": 14.0,
+      "circuit_breakers": {
+        "shared_intelligence": {
+          "failures": 0,
+          "last_failure": 0,
+          "state": "closed"
+        },
+        "heavy_analysis": {
+          "failures": 0,
+          "last_failure": 0,
+          "state": "closed"
+        }
+      },
+      "import_failures": [],
+      "shared_intelligence_available": true
+    }
+  }
+}

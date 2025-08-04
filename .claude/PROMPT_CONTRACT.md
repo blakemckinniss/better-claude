@@ -146,7 +146,7 @@ Gemini receives:
 ### 6.3 Post-Processing Phase
 After Gemini response:
 - Append static directives
-- Add ZED-PRO orchestration
+- Add zen-pro orchestration
 - Final validation checks
 - Token count verification
 
